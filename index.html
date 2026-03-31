@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>CogiTrain — Cognitive Training</title>
+
+<!-- ============================================================
+     COGITRAIN — Science-grounded cognitive training app
+     Modes: N-Back (working memory), Go/No-Go (inhibitory control),
+            Choice RT (processing speed), Task Switch (flexibility)
+     Difficulty: Staircase adaptive (up on 2 correct, down on 1 wrong)
+     Metrics: Accuracy, RT mean + SD, trend over sessions
+     Storage: localStorage for full session history
+     ============================================================ -->
+
+<style>
+/* ============================================================
+   CSS VARIABLES & RESET
+   ============================================================ */
+:root {
+  --bg:        #0a0c10;
+  --surface:   #12151c;
+  --surface2:  #1a1e28;
+  --border:    #252a38;
+  --accent:    #00d4ff;
+  --accent2:   #7c3aed;
+  --green:     #10d97e;
+  --red:       #ff4566;
+  --yellow:    #fbbf24;
+  --text:      #e8eaf0;
+  --text-dim:  #6b7280;
+  --text-mid:  #9ca3af;
+  --radius:    12px;
+  --font-mono: 'JetBrains Mono', 'Fira Mono', 'Courier New', monospace;
+  --font-ui:   'DM Sans', 'Segoe UI', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+/* ============================================================
+   LAYOUT SHELL
+   ============================================================ */
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  animation: fadeIn 0.25s ease;
+}
+.screen.active { display: flex; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   TOP NAV
+   ============================================================ */
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.top-nav .logo {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}
+.top-nav .logo span { color: var(--text-mid); font-weight: 400; }
+.nav-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-mid);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ============================================================
+   MAIN MENU
+   ============================================================ */
+.menu-hero {
+  text-align: center;
+  padding: 40px 24px 28px;
+}
+.menu-hero h1 {
+  font-size: clamp(2rem, 6vw, 3.2rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.menu-hero h1 em {
+  font-style: normal;
+  color: var(--accent);
+}
+.menu-hero p {
+  color: var(--text-mid);
+  margin-top: 10px;
+  font-size: 0.95rem;
+  max-width: 440px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 0 20px 20px;
+  max-width: 700px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.mode-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 18px;
+  cursor: pointer;
+  transition: all 0.18s;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+}
+.mode-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--card-accent, var(--accent));
+  opacity: 0;
+  transition: opacity 0.18s;
+}
+.mode-card:hover { border-color: var(--card-accent, var(--accent)); transform: translateY(-2px); }
+.mode-card:hover::before { opacity: 1; }
+.mode-card:active { transform: translateY(0); }
+
+.mode-card .icon {
+  font-size: 1.8rem;
+  margin-bottom: 10px;
+  display: block;
+}
+.mode-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.mode-card p {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.mode-card .badge {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--surface2);
+  color: var(--text-mid);
+  border: 1px solid var(--border);
+}
+
+/* Mode accent colors */
+.mode-card[data-mode="nback"]    { --card-accent: #00d4ff; }
+.mode-card[data-mode="gonogo"]   { --card-accent: #10d97e; }
+.mode-card[data-mode="choicert"] { --card-accent: #fbbf24; }
+.mode-card[data-mode="taskswitch"]{ --card-accent: #7c3aed; }
+
+/* ============================================================
+   DASHBOARD SECTION (on menu)
+   ============================================================ */
+.dashboard-strip {
+  padding: 0 20px 32px;
+  max-width: 700px;
+  margin: 0 auto;
+  width: 100%;
+}
+.section-label {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.stat-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 10px;
+  text-align: center;
+}
+.stat-box .val {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.stat-box .lbl {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+
+/* Mini history list */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.8rem;
+}
+.history-item .hi-mode {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  min-width: 70px;
+  text-align: center;
+}
+.history-item .hi-score { font-weight: 600; margin-left: auto; }
+.history-item .hi-date  { color: var(--text-dim); font-size: 0.7rem; }
+.no-history { color: var(--text-dim); font-size: 0.85rem; padding: 16px 0; text-align: center; }
+
+/* ============================================================
+   GAME SCREEN SHARED STYLES
+   ============================================================ */
+.game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.game-header .game-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-mid);
+}
+.game-header .level-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  background: rgba(0,212,255,0.08);
+  border: 1px solid rgba(0,212,255,0.2);
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.game-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+  gap: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Timer display */
+.timer-ring {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  flex-shrink: 0;
+}
+.timer-ring svg {
+  transform: rotate(-90deg);
+  width: 90px;
+  height: 90px;
+}
+.timer-ring .track { fill: none; stroke: var(--border); stroke-width: 4; }
+.timer-ring .fill  { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round;
+                     stroke-dasharray: 251.2; stroke-dashoffset: 0;
+                     transition: stroke-dashoffset 0.1s linear, stroke 0.3s; }
+.timer-ring .ring-time {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: var(--text);
+}
+
+/* Main stimulus area */
+.stimulus-box {
+  width: 100%;
+  min-height: 140px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(2.5rem, 12vw, 5rem);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.stimulus-box.flash-green { background: rgba(16,217,126,0.15); border-color: var(--green); color: var(--green); }
+.stimulus-box.flash-red   { background: rgba(255,69,102,0.15); border-color: var(--red);   color: var(--red);   }
+
+/* Feedback indicator */
+.feedback-pill {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 18px;
+  border-radius: 20px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+.feedback-pill.show { opacity: 1; }
+.feedback-pill.correct { background: rgba(16,217,126,0.15); color: var(--green); }
+.feedback-pill.wrong   { background: rgba(255,69,102,0.15); color: var(--red); }
+.feedback-pill.info    { background: rgba(0,212,255,0.1); color: var(--accent); }
+
+/* Big action buttons */
+.action-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+.btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  border: none;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #000;
+}
+.btn-primary:hover  { filter: brightness(1.1); }
+.btn-primary:active { filter: brightness(0.9); transform: scale(0.98); }
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover  { border-color: var(--text-mid); }
+.btn-secondary:active { transform: scale(0.98); }
+
+.btn-danger {
+  background: rgba(255,69,102,0.1);
+  color: var(--red);
+  border: 1px solid rgba(255,69,102,0.3);
+}
+
+.btn-big {
+  width: 100%;
+  padding: 22px;
+  font-size: 1.2rem;
+  border-radius: var(--radius);
+}
+
+/* Answer option buttons for decision/nback */
+.option-grid {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+.option-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+.option-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+.opt-btn {
+  padding: 18px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 1.4;
+  text-align: center;
+}
+.opt-btn:hover  { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.05); }
+.opt-btn:active { transform: scale(0.97); }
+.opt-btn.correct-ans { border-color: var(--green); background: rgba(16,217,126,0.12); color: var(--green); }
+.opt-btn.wrong-ans   { border-color: var(--red);   background: rgba(255,69,102,0.12); color: var(--red); }
+.opt-btn:disabled    { pointer-events: none; opacity: 0.5; }
+
+/* Trial counter + accuracy bar */
+.trial-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+.acc-bar-wrap {
+  width: 100%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.acc-bar-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+/* ============================================================
+   RESULTS SCREEN
+   ============================================================ */
+.results-body {
+  flex: 1;
+  padding: 28px 20px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.results-hero {
+  text-align: center;
+  padding: 10px 0 4px;
+}
+.results-hero .grade {
+  font-family: var(--font-mono);
+  font-size: clamp(3.5rem, 15vw, 6rem);
+  font-weight: 700;
+  line-height: 1;
+}
+.results-hero .grade.A { color: var(--green); }
+.results-hero .grade.B { color: var(--accent); }
+.results-hero .grade.C { color: var(--yellow); }
+.results-hero .grade.D { color: var(--red); }
+.results-hero p { color: var(--text-mid); font-size: 0.9rem; margin-top: 8px; }
+
+.results-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.res-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+}
+.res-stat .rv {
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.res-stat .rl {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.staircase-note {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  font-size: 0.82rem;
+  color: var(--text-mid);
+  line-height: 1.6;
+}
+.staircase-note strong { color: var(--text); }
+
+/* ============================================================
+   N-BACK SPECIFIC
+   ============================================================ */
+.nback-sequence {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+.nback-tile {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.nback-tile.active  { border-color: var(--accent); background: rgba(0,212,255,0.15); color: var(--accent); }
+.nback-tile.hidden  { color: transparent; background: var(--surface2); }
+
+/* ============================================================
+   GO/NO-GO SPECIFIC
+   ============================================================ */
+.gng-target {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  border: 3px solid var(--border);
+  background: var(--surface);
+  transition: all 0.15s;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.gng-target.go   { border-color: var(--green); background: rgba(16,217,126,0.12); box-shadow: 0 0 30px rgba(16,217,126,0.15); }
+.gng-target.nogo { border-color: var(--red);   background: rgba(255,69,102,0.12); box-shadow: 0 0 30px rgba(255,69,102,0.15); }
+
+.gng-label {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.gng-label.go   { color: var(--green); }
+.gng-label.nogo { color: var(--red); }
+
+/* ============================================================
+   TASK SWITCH SPECIFIC
+   ============================================================ */
+.ts-instruction {
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  color: var(--text-mid);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 8px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.ts-switch-indicator {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: rgba(124,58,237,0.15);
+  border: 1px solid rgba(124,58,237,0.3);
+  color: #a78bfa;
+}
+
+/* ============================================================
+   CHOICE RT SPECIFIC
+   ============================================================ */
+.crt-flash {
+  width: 100%;
+  min-height: 160px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: clamp(1.5rem, 8vw, 3rem);
+  font-weight: 700;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  transition: background 0.08s, border-color 0.08s;
+  cursor: default;
+}
+.crt-flash.active-left  { background: rgba(0,212,255,0.12); border-color: var(--accent); color: var(--accent); }
+.crt-flash.active-right { background: rgba(124,58,237,0.12); border-color: var(--accent2); color: #a78bfa; }
+
+/* ============================================================
+   MINI PROGRESS CHART
+   ============================================================ */
+.sparkline-wrap {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.sparkline-wrap .sp-label {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.sparkline-wrap svg { width: 100%; height: 50px; display: block; overflow: visible; }
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+.text-center { text-align: center; }
+.mt-auto { margin-top: auto; }
+.hidden { display: none !important; }
+
+.pulse {
+  animation: pulse 0.4s ease;
+}
+@keyframes pulse {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
+/* Responsive tweaks */
+@media (max-width: 400px) {
+  .mode-grid { grid-template-columns: 1fr; }
+  .stat-row  { grid-template-columns: repeat(2, 1fr); }
+  .option-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============================================================
+       SCREEN: MAIN MENU
+       ============================================================ -->
+  <div id="screen-menu" class="screen active">
+    <nav class="top-nav">
+      <div class="logo">COGI<span>TRAIN</span></div>
+      <button class="nav-btn" onclick="clearHistory()">Clear Data</button>
+    </nav>
+
+    <div class="menu-hero">
+      <h1>Train your<br><em>cognitive edge</em></h1>
+      <p>Science-backed tasks targeting working memory, inhibitory control, processing speed, and cognitive flexibility.</p>
+    </div>
+
+    <div class="mode-grid">
+      <div class="mode-card" data-mode="nback" onclick="startMode('nback')">
+        <span class="icon">🧠</span>
+        <h3>N-Back</h3>
+        <p>Working memory. Match stimuli from N steps back.</p>
+        <span class="badge">Working Memory</span>
+      </div>
+      <div class="mode-card" data-mode="gonogo" onclick="startMode('gonogo')">
+        <span class="icon">🛑</span>
+        <h3>Go / No-Go</h3>
+        <p>Respond to targets, withhold on foils. Trains inhibition.</p>
+        <span class="badge">Inhibitory Control</span>
+      </div>
+      <div class="mode-card" data-mode="choicert" onclick="startMode('choicert')">
+        <span class="icon">⚡</span>
+        <h3>Choice RT</h3>
+        <p>React to the correct side fast. Measures processing speed.</p>
+        <span class="badge">Processing Speed</span>
+      </div>
+      <div class="mode-card" data-mode="taskswitch" onclick="startMode('taskswitch')">
+        <span class="icon">🔀</span>
+        <h3>Task Switch</h3>
+        <p>Switch rules mid-task. Targets cognitive flexibility.</p>
+        <span class="badge">Flexibility</span>
+      </div>
+    </div>
+
+    <!-- Dashboard strip -->
+    <div class="dashboard-strip">
+      <div class="section-label">Your Stats</div>
+      <div class="stat-row" id="global-stats">
+        <div class="stat-box"><div class="val" id="gs-sessions">0</div><div class="lbl">Sessions</div></div>
+        <div class="stat-box"><div class="val" id="gs-avgacc">—</div><div class="lbl">Avg Acc</div></div>
+        <div class="stat-box"><div class="val" id="gs-avgrt">—</div><div class="lbl">Avg RT (ms)</div></div>
+        <div class="stat-box"><div class="val" id="gs-streak">0</div><div class="lbl">Best Streak</div></div>
+      </div>
+
+      <div class="sparkline-wrap" id="sparkline-section" style="display:none;">
+        <div class="sp-label">Accuracy Trend (last 20 sessions)</div>
+        <svg id="sparkline-svg" viewBox="0 0 400 50" preserveAspectRatio="none"></svg>
+      </div>
+
+      <div class="section-label" style="margin-top:16px;">Recent Sessions</div>
+      <div class="history-list" id="history-list">
+        <div class="no-history">No sessions yet. Pick a mode above to begin.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCREEN: N-BACK
+       ============================================================ -->
+  <div id="screen-nback" class="screen">
+    <div class="game-header">
+      <span class="game-title">🧠 N-Back — Working Memory</span>
+      <span class="level-badge" id="nb-level-badge">Level 1 (1-back)</span>
+    </div>
+    <div class="game-body">
+      <!-- Instruction / idle state -->
+      <div id="nb-intro" class="text-center" style="width:100%">
+        <div class="stimulus-box" style="font-size:1.1rem; padding:20px; min-height:auto; text-align:left; line-height:1.7;">
+          <span>
+            A letter appears every 2 seconds.<br>
+            Press <strong>MATCH</strong> if the current letter<br>
+            matches the one <strong>N steps back</strong>.<br><br>
+            <span style="color:var(--text-dim); font-size:0.85rem;">
+              N increases as you improve.
+            </span>
+          </span>
+        </div>
+        <div class="action-row" style="margin-top:16px;">
+          <button class="btn btn-primary btn-big" onclick="nback.start()">Start Session</button>
+        </div>
+        <button class="btn btn-secondary" style="margin-top:10px; width:100%; padding:12px;" onclick="showMenu()">← Back</button>
+      </div>
+
+      <!-- Active game -->
+      <div id="nb-game" class="hidden" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:16px;">
+        <div class="trial-meta">
+          <span id="nb-trial-info">Trial 1 / 20</span>
+          <span id="nb-acc-info">Acc: —</span>
+        </div>
+        <div class="acc-bar-wrap"><div class="acc-bar-fill" id="nb-acc-bar" style="width:0%"></div></div>
+
+        <!-- Sequence tiles showing recent history -->
+        <div class="nback-sequence" id="nb-seq-tiles"></div>
+
+        <!-- Current stimulus -->
+        <div class="stimulus-box" id="nb-stimulus">—</div>
+
+        <!-- Timer ring -->
+        <div class="timer-ring">
+          <svg viewBox="0 0 90 90"><circle class="track" cx="45" cy="45" r="40"/><circle class="fill" id="nb-ring" cx="45" cy="45" r="40"/></svg>
+          <div class="ring-time" id="nb-timer-txt">2.0</div>
+        </div>
+
+        <!-- Feedback -->
+        <div class="feedback-pill" id="nb-feedback">—</div>
+
+        <!-- Buttons -->
+        <div class="action-row">
+          <button class="btn btn-primary" id="nb-match-btn" onclick="nback.respond(true)">✓ Match</button>
+          <button class="btn btn-secondary" id="nb-nomatch-btn" onclick="nback.respond(false)">✗ No Match</button>
+        </div>
+        <button class="btn btn-danger" style="width:100%; padding:12px; font-size:0.85rem;" onclick="nback.abort()">End Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCREEN: GO / NO-GO
+       ============================================================ -->
+  <div id="screen-gonogo" class="screen">
+    <div class="game-header">
+      <span class="game-title">🛑 Go / No-Go — Inhibitory Control</span>
+      <span class="level-badge" id="gng-level-badge">Level 1</span>
+    </div>
+    <div class="game-body">
+      <div id="gng-intro" style="width:100%; text-align:center;">
+        <div class="stimulus-box" style="font-size:1rem; padding:20px; min-height:auto; text-align:left; line-height:1.8;">
+          <span>
+            <span style="color:var(--green);">🟢 GREEN circle</span> → <strong>Tap as fast as you can</strong><br>
+            <span style="color:var(--red);">🔴 RED circle</span> → <strong>Do NOT tap</strong><br><br>
+            <span style="color:var(--text-dim); font-size:0.85rem;">
+              Impulsive taps on red = commission error.<br>
+              Misses on green = omission error.
+            </span>
+          </span>
+        </div>
+        <div class="action-row" style="margin-top:16px;">
+          <button class="btn btn-primary btn-big" onclick="gonogo.start()">Start Session</button>
+        </div>
+        <button class="btn btn-secondary" style="margin-top:10px; width:100%; padding:12px;" onclick="showMenu()">← Back</button>
+      </div>
+
+      <div id="gng-game" class="hidden" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:16px;">
+        <div class="trial-meta">
+          <span id="gng-trial-info">Trial 1 / 30</span>
+          <span id="gng-err-info">Errors: 0</span>
+        </div>
+        <div class="acc-bar-wrap"><div class="acc-bar-fill" id="gng-acc-bar" style="width:0%"></div></div>
+
+        <!-- Timer ring -->
+        <div class="timer-ring">
+          <svg viewBox="0 0 90 90"><circle class="track" cx="45" cy="45" r="40"/><circle class="fill" id="gng-ring" cx="45" cy="45" r="40"/></svg>
+          <div class="ring-time" id="gng-timer-txt">—</div>
+        </div>
+
+        <!-- The circle target -->
+        <div class="gng-target" id="gng-circle" onclick="gonogo.tap()">
+          <span id="gng-icon">?</span>
+        </div>
+        <div class="gng-label" id="gng-type-label"></div>
+
+        <div class="feedback-pill" id="gng-feedback"></div>
+        <button class="btn btn-danger" style="width:100%; padding:12px; font-size:0.85rem;" onclick="gonogo.abort()">End Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCREEN: CHOICE REACTION TIME
+       ============================================================ -->
+  <div id="screen-choicert" class="screen">
+    <div class="game-header">
+      <span class="game-title">⚡ Choice RT — Processing Speed</span>
+      <span class="level-badge" id="crt-level-badge">Level 1</span>
+    </div>
+    <div class="game-body">
+      <div id="crt-intro" style="width:100%; text-align:center;">
+        <div class="stimulus-box" style="font-size:1rem; padding:20px; min-height:auto; text-align:left; line-height:1.8;">
+          <span>
+            A color flashes on the <span style="color:var(--accent);">LEFT</span> or <span style="color:#a78bfa;">RIGHT</span>.<br>
+            Tap the matching side button <strong>as fast as possible</strong>.<br><br>
+            <span style="color:var(--text-dim); font-size:0.85rem;">
+              Timing window shrinks as accuracy improves.
+            </span>
+          </span>
+        </div>
+        <div class="action-row" style="margin-top:16px;">
+          <button class="btn btn-primary btn-big" onclick="choicert.start()">Start Session</button>
+        </div>
+        <button class="btn btn-secondary" style="margin-top:10px; width:100%; padding:12px;" onclick="showMenu()">← Back</button>
+      </div>
+
+      <div id="crt-game" class="hidden" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:14px;">
+        <div class="trial-meta">
+          <span id="crt-trial-info">Trial 1 / 20</span>
+          <span id="crt-rt-info">RT: —</span>
+        </div>
+        <div class="acc-bar-wrap"><div class="acc-bar-fill" id="crt-acc-bar" style="width:0%"></div></div>
+
+        <!-- Flash display -->
+        <div class="crt-flash" id="crt-flash">Ready...</div>
+
+        <!-- Timer ring -->
+        <div class="timer-ring">
+          <svg viewBox="0 0 90 90"><circle class="track" cx="45" cy="45" r="40"/><circle class="fill" id="crt-ring" cx="45" cy="45" r="40"/></svg>
+          <div class="ring-time" id="crt-timer-txt">—</div>
+        </div>
+
+        <div class="feedback-pill" id="crt-feedback"></div>
+
+        <!-- Response buttons -->
+        <div class="action-row" id="crt-btns">
+          <button class="btn btn-primary" id="crt-left-btn" onclick="choicert.respond('left')" style="background:var(--accent); color:#000;">← Left</button>
+          <button class="btn btn-primary" id="crt-right-btn" onclick="choicert.respond('right')" style="background:var(--accent2); color:#fff;">Right →</button>
+        </div>
+        <button class="btn btn-danger" style="width:100%; padding:12px; font-size:0.85rem;" onclick="choicert.abort()">End Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCREEN: TASK SWITCH
+       ============================================================ -->
+  <div id="screen-taskswitch" class="screen">
+    <div class="game-header">
+      <span class="game-title">🔀 Task Switch — Flexibility</span>
+      <span class="level-badge" id="ts-level-badge">Level 1</span>
+    </div>
+    <div class="game-body">
+      <div id="ts-intro" style="width:100%; text-align:center;">
+        <div class="stimulus-box" style="font-size:1rem; padding:20px; min-height:auto; text-align:left; line-height:1.8;">
+          <span>
+            A number appears. You'll be asked either:<br>
+            &nbsp;• <strong>ODD or EVEN?</strong><br>
+            &nbsp;• <strong>HIGH (&gt;5) or LOW (≤5)?</strong><br><br>
+            The rule switches randomly.<br>
+            <span style="color:var(--text-dim); font-size:0.85rem;">
+              Switch trials are harder — this is the training effect.
+            </span>
+          </span>
+        </div>
+        <div class="action-row" style="margin-top:16px;">
+          <button class="btn btn-primary btn-big" onclick="taskswitch.start()">Start Session</button>
+        </div>
+        <button class="btn btn-secondary" style="margin-top:10px; width:100%; padding:12px;" onclick="showMenu()">← Back</button>
+      </div>
+
+      <div id="ts-game" class="hidden" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:14px;">
+        <div class="trial-meta">
+          <span id="ts-trial-info">Trial 1 / 24</span>
+          <span id="ts-switch-info" class="ts-switch-indicator">REPEAT</span>
+        </div>
+        <div class="acc-bar-wrap"><div class="acc-bar-fill" id="ts-acc-bar" style="width:0%"></div></div>
+
+        <!-- Rule instruction -->
+        <div class="ts-instruction" id="ts-rule-label">ODD or EVEN?</div>
+
+        <!-- Stimulus number -->
+        <div class="stimulus-box" id="ts-stimulus">—</div>
+
+        <!-- Timer ring -->
+        <div class="timer-ring">
+          <svg viewBox="0 0 90 90"><circle class="track" cx="45" cy="45" r="40"/><circle class="fill" id="ts-ring" cx="45" cy="45" r="40"/></svg>
+          <div class="ring-time" id="ts-timer-txt">3.0</div>
+        </div>
+
+        <div class="feedback-pill" id="ts-feedback"></div>
+
+        <!-- Answer buttons -->
+        <div class="option-grid cols-2" id="ts-options"></div>
+
+        <button class="btn btn-danger" style="width:100%; padding:12px; font-size:0.85rem;" onclick="taskswitch.abort()">End Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCREEN: RESULTS
+       ============================================================ -->
+  <div id="screen-results" class="screen">
+    <nav class="top-nav">
+      <div class="logo">COGI<span>TRAIN</span></div>
+      <button class="nav-btn" onclick="showMenu()">Menu</button>
+    </nav>
+    <div class="results-body">
+      <div class="results-hero">
+        <div class="grade" id="res-grade">B</div>
+        <p id="res-subtitle">Session complete</p>
+      </div>
+      <div class="results-stats" id="res-stats"></div>
+      <div class="staircase-note" id="res-note"></div>
+      <div class="action-row mt-auto">
+        <button class="btn btn-primary" id="res-replay-btn" onclick="">Play Again</button>
+        <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<script>
+/* ============================================================
+   DATA LAYER — localStorage persistence
+   ============================================================ */
+const DB_KEY = 'cogitrain_v2';
+
+function loadDB() {
+  try { return JSON.parse(localStorage.getItem(DB_KEY)) || { sessions: [], difficulty: {} }; }
+  catch(e) { return { sessions: [], difficulty: {} }; }
+}
+function saveDB(db) {
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+}
+function clearHistory() {
+  if (!confirm('Clear all session history and reset difficulty? This cannot be undone.')) return;
+  localStorage.removeItem(DB_KEY);
+  renderDashboard();
+}
+
+/* Save one session result */
+function saveSession(modeKey, payload) {
+  const db = loadDB();
+  db.sessions.push({
+    mode: modeKey,
+    ts: Date.now(),
+    ...payload
+  });
+  // Keep at most 200 sessions
+  if (db.sessions.length > 200) db.sessions.splice(0, db.sessions.length - 200);
+  saveDB(db);
+}
+
+/* Staircase difficulty per mode.
+   Each mode has: level (1–10), consec (consecutive correct count) */
+function getDifficulty(mode) {
+  const db = loadDB();
+  return db.difficulty[mode] || { level: 1, consec: 0 };
+}
+function updateDifficulty(mode, correct) {
+  const db = loadDB();
+  const d = db.difficulty[mode] || { level: 1, consec: 0 };
+  if (correct) {
+    d.consec++;
+    if (d.consec >= 2) { d.level = Math.min(d.level + 1, 10); d.consec = 0; }
+  } else {
+    d.consec = 0;
+    d.level = Math.max(d.level - 1, 1);
+  }
+  db.difficulty[mode] = d;
+  saveDB(db);
+}
+
+/* ============================================================
+   SCREEN NAVIGATION
+   ============================================================ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+function showMenu() {
+  // Stop any running games
+  nback.abort(true); gonogo.abort(true); choicert.abort(true); taskswitch.abort(true);
+  renderDashboard();
+  showScreen('menu');
+}
+function startMode(mode) {
+  showScreen(mode === 'nback' ? 'nback' :
+             mode === 'gonogo' ? 'gonogo' :
+             mode === 'choicert' ? 'choicert' : 'taskswitch');
+}
+
+/* ============================================================
+   DASHBOARD RENDER
+   ============================================================ */
+function renderDashboard() {
+  const db = loadDB();
+  const sessions = db.sessions;
+
+  // Global stats
+  document.getElementById('gs-sessions').textContent = sessions.length;
+
+  const withAcc = sessions.filter(s => s.acc != null);
+  const withRT  = sessions.filter(s => s.meanRT != null);
+  document.getElementById('gs-avgacc').textContent =
+    withAcc.length ? Math.round(withAcc.reduce((a,s)=>a+s.acc,0)/withAcc.length) + '%' : '—';
+  document.getElementById('gs-avgrt').textContent =
+    withRT.length  ? Math.round(withRT.reduce((a,s)=>a+s.meanRT,0)/withRT.length) : '—';
+
+  // Best streak (consecutive correct across any mode)
+  let streak = 0, best = 0;
+  sessions.forEach(s => {
+    if (s.acc != null && s.acc >= 80) { streak++; best = Math.max(best, streak); }
+    else streak = 0;
+  });
+  document.getElementById('gs-streak').textContent = best;
+
+  // Sparkline
+  if (withAcc.length > 1) {
+    document.getElementById('sparkline-section').style.display = '';
+    drawSparkline(withAcc.slice(-20).map(s => s.acc));
+  }
+
+  // Recent sessions list
+  const list = document.getElementById('history-list');
+  if (sessions.length === 0) {
+    list.innerHTML = '<div class="no-history">No sessions yet. Pick a mode above to begin.</div>';
+    return;
+  }
+  const recent = [...sessions].reverse().slice(0, 8);
+  const modeColors = { nback:'#00d4ff', gonogo:'#10d97e', choicert:'#fbbf24', taskswitch:'#a78bfa' };
+  const modeLabels = { nback:'N-Back', gonogo:'Go/No-Go', choicert:'Choice RT', taskswitch:'Task Switch' };
+  list.innerHTML = recent.map(s => {
+    const col = modeColors[s.mode] || '#9ca3af';
+    const lbl = modeLabels[s.mode] || s.mode;
+    const date = new Date(s.ts).toLocaleDateString(undefined, { month:'short', day:'numeric' });
+    const score = s.acc != null ? s.acc + '%' : (s.meanRT ? s.meanRT + 'ms' : '—');
+    return `<div class="history-item">
+      <span class="hi-mode" style="background:${col}22; color:${col}; border-color:${col}44">${lbl}</span>
+      <span style="font-size:0.75rem; color:var(--text-dim)">Lv ${s.level||1}</span>
+      <span class="hi-score">${score}</span>
+      <span class="hi-date">${date}</span>
+    </div>`;
+  }).join('');
+}
+
+function drawSparkline(values) {
+  const svg = document.getElementById('sparkline-svg');
+  if (values.length < 2) { svg.innerHTML = ''; return; }
+  const W = 400, H = 50, pad = 4;
+  const min = Math.max(0,  Math.min(...values) - 5);
+  const max = Math.min(100, Math.max(...values) + 5);
+  const xStep = (W - pad*2) / (values.length - 1);
+  const yScale = v => H - pad - ((v - min) / (max - min || 1)) * (H - pad*2);
+  const pts = values.map((v, i) => `${pad + i * xStep},${yScale(v)}`).join(' ');
+
+  // Area fill
+  const first = `${pad},${yScale(values[0])}`;
+  const last  = `${pad + (values.length-1)*xStep},${yScale(values[values.length-1])}`;
+  const areaPath = `M ${first} L ${pts.split(' ').slice(1).join(' L ')} L ${pad+(values.length-1)*xStep},${H} L ${pad},${H} Z`;
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="${areaPath}" fill="url(#sg)"/>
+    <polyline points="${pts}" fill="none" stroke="#00d4ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${values.map((v,i)=>`<circle cx="${pad+i*xStep}" cy="${yScale(v)}" r="2.5" fill="#00d4ff"/>`).join('')}
+  `;
+}
+
+/* ============================================================
+   RESULTS SCREEN
+   ============================================================ */
+function showResults(modeKey, data) {
+  const { acc, trials, correct, meanRT, sdRT, level, nextLevel, switchCost } = data;
+
+  // Grade
+  let grade = 'D';
+  if (acc >= 90) grade = 'A';
+  else if (acc >= 75) grade = 'B';
+  else if (acc >= 60) grade = 'C';
+
+  document.getElementById('res-grade').textContent = grade;
+  document.getElementById('res-grade').className = 'grade ' + grade;
+  document.getElementById('res-subtitle').textContent =
+    `${correct}/${trials} correct · ${modeKey.toUpperCase()} · Level ${level}`;
+
+  // Stats cards
+  const stats = [
+    { val: acc + '%', lbl: 'Accuracy' },
+    { val: meanRT ? meanRT + 'ms' : '—', lbl: 'Mean RT' },
+    { val: sdRT ? sdRT + 'ms' : '—', lbl: 'RT Variability (SD)' },
+    { val: 'Lv ' + nextLevel, lbl: 'Next Level' },
+  ];
+  if (switchCost != null) stats[2] = { val: switchCost + 'ms', lbl: 'Switch Cost' };
+
+  document.getElementById('res-stats').innerHTML = stats.map(s =>
+    `<div class="res-stat"><div class="rv">${s.val}</div><div class="rl">${s.lbl}</div></div>`
+  ).join('');
+
+  // Adaptive note
+  const notes = {
+    A: `Excellent — difficulty increased to <strong>Level ${nextLevel}</strong>. Reaction variability (SD) is your key metric to watch.`,
+    B: `Good performance — held at <strong>Level ${nextLevel}</strong>. Push for 90%+ to advance.`,
+    C: `Difficulty dropped to <strong>Level ${nextLevel}</strong>. Focus on accuracy before speed.`,
+    D: `Difficulty dropped to <strong>Level ${nextLevel}</strong>. Slow down, prioritize correctness.`
+  };
+  document.getElementById('res-note').innerHTML = notes[grade];
+
+  // Replay button
+  document.getElementById('res-replay-btn').onclick = () => startMode(modeKey);
+
+  showScreen('results');
+}
+
+/* ============================================================
+   TIMER UTILITY
+   ============================================================ */
+function RingTimer(ringId, textId, totalMs, onTick, onEnd) {
+  const ring = document.getElementById(ringId);
+  const txt  = document.getElementById(textId);
+  const circumference = 251.2;
+  let remaining = totalMs;
+  let interval = null;
+
+  this.start = function() {
+    clearInterval(interval);
+    remaining = totalMs;
+    interval = setInterval(() => {
+      remaining -= 100;
+      const frac = Math.max(0, remaining / totalMs);
+      const offset = circumference * (1 - frac);
+      ring.style.strokeDashoffset = offset;
+      // Color shift: green → yellow → red
+      ring.style.stroke = frac > 0.5 ? 'var(--accent)' : frac > 0.25 ? 'var(--yellow)' : 'var(--red)';
+      txt.textContent = (remaining / 1000).toFixed(1);
+      if (onTick) onTick(remaining);
+      if (remaining <= 0) { clearInterval(interval); ring.style.strokeDashoffset = circumference; if (onEnd) onEnd(); }
+    }, 100);
+  };
+  this.stop = function() { clearInterval(interval); ring.style.strokeDashoffset = circumference; ring.style.stroke = 'var(--accent)'; txt.textContent = '—'; };
+  this.reset = function() { clearInterval(interval); ring.style.strokeDashoffset = 0; ring.style.stroke = 'var(--accent)'; };
+}
+
+/* ============================================================
+   HELPER: mean + SD
+   ============================================================ */
+function stats(arr) {
+  if (!arr.length) return { mean: 0, sd: 0 };
+  const mean = arr.reduce((a,b)=>a+b,0)/arr.length;
+  const sd   = Math.sqrt(arr.reduce((a,b)=>a+(b-mean)**2,0)/arr.length);
+  return { mean: Math.round(mean), sd: Math.round(sd) };
+}
+
+/* ============================================================
+   FLASH FEEDBACK helper
+   ============================================================ */
+function flashFeedback(elId, correct, msg) {
+  const el = document.getElementById(elId);
+  el.textContent = msg;
+  el.className = 'feedback-pill show ' + (correct ? 'correct' : 'wrong');
+  setTimeout(() => { el.className = 'feedback-pill'; }, 700);
+}
+
+/* ============================================================
+   MODE 1: N-BACK
+   Working memory. Level N = how many steps back.
+   Level 1→10 maps to N=1→4 (N grows slowly).
+   ============================================================ */
+const nback = (() => {
+  const TOTAL_TRIALS = 20;
+  const STIM_POOL = 'BCDFGHJKLMNPQRSTVWXYZ'.split(''); // consonants only (cleaner)
+  let level, N, sequence, trialIdx, correct, total, rtList;
+  let stimTimeout, timerObj, active, trialActive;
+
+  function getNfromLevel(lv) {
+    if (lv <= 2) return 1;
+    if (lv <= 5) return 2;
+    if (lv <= 8) return 3;
+    return 4;
+  }
+
+  function getTimefromLevel(lv) {
+    // ms per stimulus — shrinks with level
+    return Math.max(1200, 2500 - (lv - 1) * 130);
+  }
+
+  function start() {
+    const d = getDifficulty('nback');
+    level = d.level;
+    N = getNfromLevel(level);
+    sequence = [];
+    trialIdx = 0; correct = 0; total = 0;
+    rtList = [];
+    active = true; trialActive = false;
+
+    document.getElementById('nb-level-badge').textContent = `Level ${level} (${N}-back)`;
+    document.getElementById('nb-intro').classList.add('hidden');
+    document.getElementById('nb-game').classList.remove('hidden');
+    document.getElementById('nb-game').style.display = 'flex';
+
+    updateNbackUI();
+    setTimeout(nextTrial, 600);
+  }
+
+  function nextTrial() {
+    if (!active) return;
+    if (trialIdx >= TOTAL_TRIALS) { finish(); return; }
+
+    // Generate next stimulus (30% chance of match if sequence long enough)
+    let stim;
+    if (sequence.length >= N && Math.random() < 0.35) {
+      stim = sequence[sequence.length - N]; // match
+    } else {
+      do { stim = STIM_POOL[Math.floor(Math.random() * STIM_POOL.length)]; }
+      while (sequence.length >= N && stim === sequence[sequence.length - N]);
+    }
+    sequence.push(stim);
+
+    const isMatch = sequence.length > N && sequence[sequence.length - 1] === sequence[sequence.length - 1 - N];
+    // Actually recompute correctly:
+    const correctMatch = sequence.length > N
+      ? sequence[sequence.length - 1] === sequence[sequence.length - 1 - N]
+      : false;
+
+    trialIdx++;
+    trialActive = true;
+    let responded = false;
+    let trialStart = Date.now();
+
+    // Update tiles
+    renderTiles();
+
+    // Show stimulus
+    const stimEl = document.getElementById('nb-stimulus');
+    stimEl.textContent = stim;
+    stimEl.className = 'stimulus-box pulse';
+
+    updateNbackUI();
+
+    // Timer
+    const timeAllowed = getTimefromLevel(level);
+    if (timerObj) timerObj.stop();
+    timerObj = new RingTimer('nb-ring', 'nb-timer-txt', timeAllowed, null, () => {
+      if (!responded && trialActive) {
+        // Timeout — if it was a match, that's a miss; if no-match, that's a correct withhold
+        trialActive = false;
+        if (!correctMatch) {
+          // Correct — user correctly withheld
+          correct++;
+          updateDifficulty('nback', true);
+          flashFeedback('nb-feedback', true, '✓ Correct withhold');
+        } else {
+          flashFeedback('nb-feedback', false, '✗ Missed match');
+        }
+        total++;
+        updateNbackUI();
+        setTimeout(nextTrial, 500);
+      }
+    });
+    timerObj.start();
+
+    // Store trial data for respond()
+    nback._currentTrial = { correctMatch, responded: false, trialStart };
+  }
+
+  function respond(userSaysMatch) {
+    if (!trialActive || !active) return;
+    const t = nback._currentTrial;
+    if (t.responded) return;
+    t.responded = true;
+    trialActive = false;
+
+    if (timerObj) timerObj.stop();
+    const rt = Date.now() - t.trialStart;
+    rtList.push(rt);
+
+    const isCorrect = userSaysMatch === t.correctMatch;
+    total++;
+    if (isCorrect) {
+      correct++;
+      updateDifficulty('nback', true);
+      flashFeedback('nb-feedback', true, `✓ Correct (+${rt}ms)`);
+    } else {
+      updateDifficulty('nback', false);
+      flashFeedback('nb-feedback', false, userSaysMatch ? '✗ False alarm' : '✗ Missed match');
+    }
+    updateNbackUI();
+    setTimeout(nextTrial, 500);
+  }
+
+  function renderTiles() {
+    const wrap = document.getElementById('nb-seq-tiles');
+    const show = sequence.slice(-8); // last 8
+    wrap.innerHTML = show.map((s, i) => {
+      const isCurrent = i === show.length - 1;
+      const isNBack = show.length > N && i === show.length - 1 - N;
+      return `<div class="nback-tile ${isCurrent ? 'active' : ''}" title="${isNBack ? 'N-back position' : ''}"
+        style="${isNBack ? 'outline:2px dashed var(--accent2); outline-offset:2px;' : ''}">${isCurrent ? s : isNBack ? s : '·'}</div>`;
+    }).join('');
+  }
+
+  function updateNbackUI() {
+    const acc = total ? Math.round(correct/total*100) : 0;
+    document.getElementById('nb-trial-info').textContent = `Trial ${trialIdx} / ${TOTAL_TRIALS}`;
+    document.getElementById('nb-acc-info').textContent = total ? `Acc: ${acc}%` : 'Acc: —';
+    document.getElementById('nb-acc-bar').style.width = total ? acc + '%' : '0%';
+  }
+
+  function finish() {
+    active = false;
+    const acc = total ? Math.round(correct/total*100) : 0;
+    const d = getDifficulty('nback');
+    const s = stats(rtList);
+    saveSession('nback', { acc, trials: total, correct, meanRT: s.mean || null, sdRT: s.sd || null, level });
+    showResults('nback', { acc, trials: total, correct, meanRT: s.mean || null, sdRT: s.sd || null, level, nextLevel: d.level });
+  }
+
+  function abort(silent) {
+    active = false; trialActive = false;
+    if (timerObj) timerObj.stop();
+    clearTimeout(stimTimeout);
+    if (!silent) {
+      document.getElementById('nb-intro').classList.remove('hidden');
+      document.getElementById('nb-game').classList.add('hidden');
+    }
+  }
+
+  return { start, respond, abort, _currentTrial: null };
+})();
+
+/* ============================================================
+   MODE 2: GO / NO-GO
+   Green circle = tap. Red circle = withhold.
+   Level affects: % no-go, ISI (inter-stimulus interval), window.
+   ============================================================ */
+const gonogo = (() => {
+  const TOTAL_TRIALS = 30;
+  const GO_ICONS   = ['●','◆','▲','★'];
+  const NOGO_ICON  = '✕';
+
+  let level, trialIdx, correct, commission, omission, rtList;
+  let isiTimeout, windowTimeout, active, waitingTap, currentIsGo, trialStart, timerObj;
+
+  function getParamsFromLevel(lv) {
+    return {
+      noGoRatio: Math.min(0.45, 0.20 + (lv-1)*0.03), // 20%→45%
+      windowMs:  Math.max(400, 1000 - (lv-1)*60),     // 1000ms→400ms
+      isiMs:     Math.max(600, 1400 - (lv-1)*80),     // 1400ms→600ms
+    };
+  }
+
+  function start() {
+    const d = getDifficulty('gonogo');
+    level = d.level;
+    trialIdx = 0; correct = 0; commission = 0; omission = 0;
+    rtList = []; active = true; waitingTap = false;
+
+    document.getElementById('gng-level-badge').textContent = `Level ${level}`;
+    document.getElementById('gng-intro').classList.add('hidden');
+    document.getElementById('gng-game').classList.remove('hidden');
+    document.getElementById('gng-game').style.display = 'flex';
+
+    updateGngUI();
+    setTimeout(showISI, 400);
+  }
+
+  function showISI() {
+    if (!active) return;
+    if (trialIdx >= TOTAL_TRIALS) { finish(); return; }
+    const circle = document.getElementById('gng-circle');
+    const icon   = document.getElementById('gng-icon');
+    const lbl    = document.getElementById('gng-type-label');
+    circle.className = 'gng-target';
+    icon.textContent = '?';
+    lbl.textContent = '';
+    lbl.className = 'gng-label';
+
+    const p = getParamsFromLevel(level);
+    isiTimeout = setTimeout(() => showStimulus(p), p.isiMs * (0.7 + Math.random() * 0.6));
+  }
+
+  function showStimulus(p) {
+    if (!active) return;
+    trialIdx++;
+    currentIsGo = Math.random() > p.noGoRatio;
+    waitingTap = true;
+    trialStart = Date.now();
+
+    const circle = document.getElementById('gng-circle');
+    const icon   = document.getElementById('gng-icon');
+    const lbl    = document.getElementById('gng-type-label');
+
+    if (currentIsGo) {
+      circle.className = 'gng-target go';
+      icon.textContent = GO_ICONS[Math.floor(Math.random()*GO_ICONS.length)];
+      lbl.textContent = 'GO';
+      lbl.className = 'gng-label go';
+    } else {
+      circle.className = 'gng-target nogo';
+      icon.textContent = NOGO_ICON;
+      lbl.textContent = 'NO-GO';
+      lbl.className = 'gng-label nogo';
+    }
+
+    if (timerObj) timerObj.stop();
+    timerObj = new RingTimer('gng-ring', 'gng-timer-txt', p.windowMs, null, () => {
+      if (waitingTap) {
+        waitingTap = false;
+        if (currentIsGo) {
+          // Omission error
+          omission++;
+          updateDifficulty('gonogo', false);
+          flashFeedback('gng-feedback', false, '✗ Too slow!');
+        } else {
+          // Correct withhold
+          correct++;
+          updateDifficulty('gonogo', true);
+          flashFeedback('gng-feedback', true, '✓ Withheld');
+        }
+        updateGngUI();
+        showISI();
+      }
+    });
+    timerObj.start();
+  }
+
+  function tap() {
+    if (!waitingTap || !active) return;
+    waitingTap = false;
+    if (timerObj) timerObj.stop();
+
+    const rt = Date.now() - trialStart;
+    if (currentIsGo) {
+      // Correct tap
+      correct++;
+      rtList.push(rt);
+      updateDifficulty('gonogo', true);
+      flashFeedback('gng-feedback', true, `✓ Go! (${rt}ms)`);
+    } else {
+      // Commission error
+      commission++;
+      updateDifficulty('gonogo', false);
+      flashFeedback('gng-feedback', false, '✗ False alarm!');
+    }
+    updateGngUI();
+    showISI();
+  }
+
+  function updateGngUI() {
+    const total = trialIdx;
+    const errors = commission + omission;
+    const acc = total ? Math.round(correct/total*100) : 0;
+    document.getElementById('gng-trial-info').textContent = `Trial ${trialIdx} / ${TOTAL_TRIALS}`;
+    document.getElementById('gng-err-info').textContent = `Errors: ${errors}`;
+    document.getElementById('gng-acc-bar').style.width = total ? acc + '%' : '0%';
+    if (errors > 0) document.getElementById('gng-acc-bar').style.background = errors > 3 ? 'var(--red)' : 'var(--yellow)';
+    else document.getElementById('gng-acc-bar').style.background = 'var(--green)';
+  }
+
+  function finish() {
+    active = false;
+    const total = trialIdx;
+    const acc = total ? Math.round(correct/total*100) : 0;
+    const d = getDifficulty('gonogo');
+    const s = stats(rtList);
+    saveSession('gonogo', { acc, trials: total, correct, commission, omission, meanRT: s.mean||null, sdRT: s.sd||null, level });
+    showResults('gonogo', {
+      acc, trials: total, correct, meanRT: s.mean||null, sdRT: s.sd||null, level, nextLevel: d.level,
+    });
+  }
+
+  function abort(silent) {
+    active = false; waitingTap = false;
+    clearTimeout(isiTimeout); clearTimeout(windowTimeout);
+    if (timerObj) timerObj.stop();
+    if (!silent) {
+      document.getElementById('gng-intro').classList.remove('hidden');
+      document.getElementById('gng-game').classList.add('hidden');
+    }
+  }
+
+  return { start, tap, abort };
+})();
+
+/* ============================================================
+   MODE 3: CHOICE REACTION TIME
+   Flash left (cyan) or right (purple). Respond with correct button.
+   Level affects: foreperiod jitter, response window, distractor.
+   ============================================================ */
+const choicert = (() => {
+  const TOTAL_TRIALS = 20;
+  let level, trialIdx, correct, total, rtList;
+  let stimTimeout, active, waitingResp, currentSide, stimStart, timerObj;
+
+  function getWindowMs(lv) { return Math.max(500, 1500 - (lv-1)*100); }
+  function getForeperiodMs(lv) { return 800 + Math.random() * (1200 - lv*80); }
+
+  function start() {
+    const d = getDifficulty('choicert');
+    level = d.level;
+    trialIdx = 0; correct = 0; total = 0;
+    rtList = []; active = true; waitingResp = false;
+
+    document.getElementById('crt-level-badge').textContent = `Level ${level}`;
+    document.getElementById('crt-intro').classList.add('hidden');
+    document.getElementById('crt-game').classList.remove('hidden');
+    document.getElementById('crt-game').style.display = 'flex';
+
+    document.getElementById('crt-flash').textContent = 'Get ready...';
+    document.getElementById('crt-flash').className = 'crt-flash';
+    document.getElementById('crt-left-btn').disabled  = true;
+    document.getElementById('crt-right-btn').disabled = true;
+
+    updateCrtUI();
+    setTimeout(nextTrial, 1000);
+  }
+
+  function nextTrial() {
+    if (!active) return;
+    if (trialIdx >= TOTAL_TRIALS) { finish(); return; }
+
+    trialIdx++;
+    waitingResp = false;
+
+    document.getElementById('crt-flash').textContent = '+';
+    document.getElementById('crt-flash').className = 'crt-flash';
+    document.getElementById('crt-left-btn').disabled  = true;
+    document.getElementById('crt-right-btn').disabled = true;
+
+    updateCrtUI();
+
+    // Foreperiod (variable — prevents anticipation)
+    stimTimeout = setTimeout(() => {
+      if (!active) return;
+      currentSide = Math.random() < 0.5 ? 'left' : 'right';
+      stimStart = Date.now();
+      waitingResp = true;
+
+      const flash = document.getElementById('crt-flash');
+      flash.textContent = currentSide === 'left' ? '◀  LEFT' : 'RIGHT  ▶';
+      flash.className = 'crt-flash ' + (currentSide === 'left' ? 'active-left' : 'active-right');
+      document.getElementById('crt-left-btn').disabled  = false;
+      document.getElementById('crt-right-btn').disabled = false;
+
+      const windowMs = getWindowMs(level);
+      if (timerObj) timerObj.stop();
+      timerObj = new RingTimer('crt-ring', 'crt-timer-txt', windowMs, null, () => {
+        if (waitingResp) {
+          waitingResp = false;
+          total++;
+          updateDifficulty('choicert', false);
+          flash.textContent = '✗ Too slow';
+          flash.className = 'crt-flash';
+          document.getElementById('crt-left-btn').disabled  = true;
+          document.getElementById('crt-right-btn').disabled = true;
+          flashFeedback('crt-feedback', false, '✗ Timeout');
+          updateCrtUI();
+          setTimeout(nextTrial, 700);
+        }
+      });
+      timerObj.start();
+    }, getForeperiodMs(level));
+  }
+
+  function respond(side) {
+    if (!waitingResp || !active) return;
+    waitingResp = false;
+    if (timerObj) timerObj.stop();
+
+    const rt = Date.now() - stimStart;
+    rtList.push(rt);
+    total++;
+
+    const isCorrect = side === currentSide;
+    if (isCorrect) {
+      correct++;
+      updateDifficulty('choicert', true);
+      flashFeedback('crt-feedback', true, `✓ ${rt}ms`);
+    } else {
+      updateDifficulty('choicert', false);
+      flashFeedback('crt-feedback', false, `✗ Wrong side (${rt}ms)`);
+    }
+
+    document.getElementById('crt-left-btn').disabled  = true;
+    document.getElementById('crt-right-btn').disabled = true;
+    document.getElementById('crt-flash').className = 'crt-flash';
+    document.getElementById('crt-flash').textContent = isCorrect ? '✓' : '✗';
+    document.getElementById('crt-rt-info').textContent = `RT: ${rt}ms`;
+
+    updateCrtUI();
+    setTimeout(nextTrial, 600);
+  }
+
+  function updateCrtUI() {
+    const acc = total ? Math.round(correct/total*100) : 0;
+    document.getElementById('crt-trial-info').textContent = `Trial ${trialIdx} / ${TOTAL_TRIALS}`;
+    document.getElementById('crt-acc-bar').style.width = total ? acc + '%' : '0%';
+  }
+
+  function finish() {
+    active = false;
+    const acc = total ? Math.round(correct/total*100) : 0;
+    const d = getDifficulty('choicert');
+    const s = stats(rtList);
+    saveSession('choicert', { acc, trials: total, correct, meanRT: s.mean||null, sdRT: s.sd||null, level });
+    showResults('choicert', { acc, trials: total, correct, meanRT: s.mean||null, sdRT: s.sd||null, level, nextLevel: d.level });
+  }
+
+  function abort(silent) {
+    active = false; waitingResp = false;
+    clearTimeout(stimTimeout);
+    if (timerObj) timerObj.stop();
+    if (!silent) {
+      document.getElementById('crt-intro').classList.remove('hidden');
+      document.getElementById('crt-game').classList.add('hidden');
+    }
+  }
+
+  return { start, respond, abort };
+})();
+
+/* ============================================================
+   MODE 4: TASK SWITCH
+   Two rules alternating: ODD/EVEN and HIGH(>5)/LOW(≤5).
+   Level affects: proportion of switch trials and time window.
+   ============================================================ */
+const taskswitch = (() => {
+  const TOTAL_TRIALS = 24;
+  const RULES = ['parity', 'magnitude'];
+
+  let level, trialIdx, correct, total, rtList;
+  let switchRTs, repeatRTs;
+  let active, currentRule, prevRule, waitingResp;
+  let trialStart, timerObj, trialTimeout;
+
+  function getWindowMs(lv) { return Math.max(800, 3000 - (lv-1)*220); }
+  function getSwitchProb(lv) { return Math.min(0.6, 0.25 + (lv-1)*0.04); }
+
+  function start() {
+    const d = getDifficulty('taskswitch');
+    level = d.level;
+    trialIdx = 0; correct = 0; total = 0;
+    rtList = []; switchRTs = []; repeatRTs = [];
+    active = true; waitingResp = false;
+    prevRule = null;
+    currentRule = RULES[Math.floor(Math.random()*2)];
+
+    document.getElementById('ts-level-badge').textContent = `Level ${level}`;
+    document.getElementById('ts-intro').classList.add('hidden');
+    document.getElementById('ts-game').classList.remove('hidden');
+    document.getElementById('ts-game').style.display = 'flex';
+
+    updateTsUI();
+    setTimeout(nextTrial, 500);
+  }
+
+  function nextTrial() {
+    if (!active) return;
+    if (trialIdx >= TOTAL_TRIALS) { finish(); return; }
+
+    trialIdx++;
+    const isSwitch = prevRule != null && Math.random() < getSwitchProb(level);
+    if (isSwitch) {
+      currentRule = currentRule === 'parity' ? 'magnitude' : 'parity';
+    }
+
+    const num = Math.floor(Math.random() * 9) + 1; // 1–9
+    waitingResp = true;
+    trialStart = Date.now();
+
+    // Determine correct answer
+    let answers, correctAns;
+    if (currentRule === 'parity') {
+      answers = ['ODD', 'EVEN'];
+      correctAns = num % 2 === 1 ? 'ODD' : 'EVEN';
+    } else {
+      answers = ['LOW (≤5)', 'HIGH (>5)'];
+      correctAns = num <= 5 ? 'LOW (≤5)' : 'HIGH (>5)';
+    }
+
+    // UI
+    document.getElementById('ts-rule-label').textContent =
+      currentRule === 'parity' ? 'ODD or EVEN?' : 'HIGH (>5) or LOW (≤5)?';
+    document.getElementById('ts-stimulus').textContent = num;
+    document.getElementById('ts-switch-info').textContent = isSwitch ? '⚡ SWITCH' : 'REPEAT';
+    document.getElementById('ts-switch-info').style.background =
+      isSwitch ? 'rgba(251,191,36,0.15)' : 'rgba(124,58,237,0.15)';
+    document.getElementById('ts-switch-info').style.borderColor =
+      isSwitch ? 'rgba(251,191,36,0.4)' : 'rgba(124,58,237,0.3)';
+    document.getElementById('ts-switch-info').style.color =
+      isSwitch ? 'var(--yellow)' : '#a78bfa';
+
+    // Build option buttons
+    document.getElementById('ts-options').innerHTML = answers.map(ans =>
+      `<button class="opt-btn" onclick="taskswitch.respond('${ans}', '${correctAns}', ${isSwitch})">${ans}</button>`
+    ).join('');
+
+    updateTsUI(isSwitch);
+
+    prevRule = currentRule;
+
+    const windowMs = getWindowMs(level);
+    if (timerObj) timerObj.stop();
+    timerObj = new RingTimer('ts-ring', 'ts-timer-txt', windowMs, null, () => {
+      if (waitingResp) {
+        waitingResp = false;
+        total++;
+        updateDifficulty('taskswitch', false);
+        document.querySelectorAll('#ts-options .opt-btn').forEach(b => {
+          b.disabled = true;
+          if (b.textContent.trim() === correctAns.trim()) b.classList.add('correct-ans');
+        });
+        flashFeedback('ts-feedback', false, '✗ Too slow!');
+        updateTsUI(isSwitch);
+        setTimeout(nextTrial, 700);
+      }
+    });
+    timerObj.start();
+  }
+
+  function respond(chosen, correctAns, isSwitch) {
+    if (!waitingResp || !active) return;
+    waitingResp = false;
+    if (timerObj) timerObj.stop();
+
+    const rt = Date.now() - trialStart;
+    rtList.push(rt);
+    total++;
+
+    const isCorrect = chosen === correctAns;
+
+    // Highlight buttons
+    document.querySelectorAll('#ts-options .opt-btn').forEach(b => {
+      b.disabled = true;
+      const t = b.textContent.trim();
+      if (t === correctAns.trim()) b.classList.add('correct-ans');
+      else if (t === chosen.trim() && !isCorrect) b.classList.add('wrong-ans');
+    });
+
+    if (isCorrect) {
+      correct++;
+      updateDifficulty('taskswitch', true);
+      flashFeedback('ts-feedback', true, `✓ ${rt}ms`);
+      if (isSwitch) switchRTs.push(rt); else repeatRTs.push(rt);
+    } else {
+      updateDifficulty('taskswitch', false);
+      flashFeedback('ts-feedback', false, '✗ Wrong rule');
+    }
+
+    updateTsUI(isSwitch);
+    setTimeout(nextTrial, 700);
+  }
+
+  function updateTsUI() {
+    const acc = total ? Math.round(correct/total*100) : 0;
+    document.getElementById('ts-trial-info').textContent = `Trial ${trialIdx} / ${TOTAL_TRIALS}`;
+    document.getElementById('ts-acc-bar').style.width = total ? acc + '%' : '0%';
+  }
+
+  function finish() {
+    active = false;
+    const acc = total ? Math.round(correct/total*100) : 0;
+    const d = getDifficulty('taskswitch');
+    const s = stats(rtList);
+    const swS = stats(switchRTs);
+    const repS = stats(repeatRTs);
+    const switchCost = (swS.mean && repS.mean) ? swS.mean - repS.mean : null;
+    saveSession('taskswitch', { acc, trials: total, correct, meanRT: s.mean||null, sdRT: s.sd||null, switchCost, level });
+    showResults('taskswitch', { acc, trials: total, correct, meanRT: s.mean||null, sdRT: s.sd||null, switchCost, level, nextLevel: d.level });
+  }
+
+  function abort(silent) {
+    active = false; waitingResp = false;
+    clearTimeout(trialTimeout);
+    if (timerObj) timerObj.stop();
+    if (!silent) {
+      document.getElementById('ts-intro').classList.remove('hidden');
+      document.getElementById('ts-game').classList.add('hidden');
+    }
+  }
+
+  return { start, respond, abort };
+})();
+
+/* ============================================================
+   KEYBOARD SUPPORT
+   ============================================================ */
+document.addEventListener('keydown', e => {
+  const active = document.querySelector('.screen.active')?.id;
+  if (active === 'screen-nback') {
+    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'm') nback.respond(true);
+    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'n') nback.respond(false);
+  }
+  if (active === 'screen-gonogo') {
+    if (e.key === ' ' || e.key === 'Enter') gonogo.tap();
+  }
+  if (active === 'screen-choicert') {
+    if (e.key === 'ArrowLeft'  || e.key.toLowerCase() === 'a') choicert.respond('left');
+    if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') choicert.respond('right');
+  }
+  if (active === 'screen-taskswitch') {
+    // no keyboard for task switch — option buttons handle it
+  }
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+renderDashboard();
+</script>
+</body>
+</html>
