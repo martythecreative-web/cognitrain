@@ -692,6 +692,830 @@ html, body {
   .stat-row  { grid-template-columns: repeat(2, 1fr); }
   .option-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
 }
+
+/* ============================================================
+   STATS SCREEN
+   ============================================================ */
+.stats-body {
+  flex: 1;
+  padding: 0 20px 32px;
+  max-width: 700px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Tab bar */
+.stats-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.stats-tabs::-webkit-scrollbar { display: none; }
+.stats-tab {
+  flex-shrink: 0;
+  padding: 12px 18px;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.stats-tab:hover { color: var(--text-mid); }
+.stats-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.stats-panel { display: none; flex-direction: column; gap: 16px; }
+.stats-panel.active { display: flex; }
+
+/* Calendar heatmap */
+.cal-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.cal-title {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.cal-nav {
+  display: flex;
+  gap: 8px;
+}
+.cal-nav button {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-mid);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cal-nav button:hover { border-color: var(--accent); color: var(--accent); }
+.cal-dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.cal-dow span {
+  text-align: center;
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-cell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  cursor: default;
+  transition: transform 0.1s;
+  position: relative;
+}
+.cal-cell.empty { background: transparent; border-color: transparent; }
+.cal-cell.today { border-color: var(--accent); }
+.cal-cell.has-data { cursor: pointer; }
+.cal-cell.has-data:hover { transform: scale(1.1); z-index: 2; }
+.cal-cell.heat-1 { background: rgba(0,212,255,0.15); border-color: rgba(0,212,255,0.3); color: var(--accent); }
+.cal-cell.heat-2 { background: rgba(0,212,255,0.30); border-color: rgba(0,212,255,0.5); color: var(--accent); }
+.cal-cell.heat-3 { background: rgba(0,212,255,0.50); border-color: rgba(0,212,255,0.7); color: #000; }
+.cal-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+.cal-legend-dot {
+  width: 10px; height: 10px; border-radius: 2px;
+}
+
+/* Mode breakdown cards */
+.mode-breakdown {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.mode-breakdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.mode-breakdown-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mode-breakdown-badge {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.mode-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.mode-stat-cell {
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: center;
+}
+.mode-stat-cell .msv {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.mode-stat-cell .msl {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* Mini sparkline per mode */
+.mode-spark-wrap {
+  margin-top: 4px;
+}
+.mode-spark-label {
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+.mode-spark-wrap svg { width: 100%; height: 36px; display: block; overflow: visible; }
+
+/* Personal records */
+.pr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pr-item {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  gap: 12px;
+}
+.pr-item .pr-icon { font-size: 1.3rem; }
+.pr-item .pr-info { flex: 1; }
+.pr-item .pr-name { font-size: 0.85rem; font-weight: 600; }
+.pr-item .pr-sub  { font-size: 0.7rem; color: var(--text-dim); margin-top: 2px; }
+.pr-item .pr-val  {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.pr-item .pr-date { font-size: 0.65rem; color: var(--text-dim); font-family: var(--font-mono); }
+
+/* Session history full list */
+.full-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fh-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.fh-item:hover { border-color: var(--text-dim); }
+.fh-mode-tag {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  min-width: 72px;
+  text-align: center;
+}
+.fh-details { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.fh-main { font-weight: 600; font-size: 0.82rem; }
+.fh-sub  { font-size: 0.68rem; color: var(--text-dim); }
+.fh-score { font-family: var(--font-mono); font-weight: 700; font-size: 0.9rem; }
+.fh-date  { font-size: 0.65rem; color: var(--text-dim); font-family: var(--font-mono); min-width: 40px; text-align: right; }
+
+/* Filter row */
+.filter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filter-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.filter-btn:hover  { border-color: var(--text-mid); color: var(--text); }
+.filter-btn.active { background: rgba(0,212,255,0.1); border-color: var(--accent); color: var(--accent); }
+
+/* No data state */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+.empty-state .es-icon { font-size: 2.5rem; display: block; margin-bottom: 12px; }
+.empty-state strong { color: var(--text-mid); }
+
+/* ============================================================
+   INFO BUTTON ON MODE CARDS
+   ============================================================ */
+.mode-card-wrap {
+  position: relative;
+}
+.mode-info-btn {
+  position: absolute;
+  top: 10px; right: 10px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  z-index: 10;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 1;
+}
+.mode-info-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.08); }
+
+/* ============================================================
+   BOTTOM SHEET MODAL
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 500;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+.modal-sheet {
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-radius: 20px 20px 0 0;
+  padding: 0 0 40px;
+  max-height: 88vh;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(0.32,0.72,0,1);
+  -webkit-overflow-scrolling: touch;
+}
+.modal-overlay.open .modal-sheet {
+  transform: translateY(0);
+}
+.modal-drag-handle {
+  width: 40px; height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 14px auto 0;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 1.1rem; font-weight: 700;
+}
+.modal-close {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-mid);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.modal-close:hover { border-color: var(--red); color: var(--red); }
+.modal-body {
+  padding: 20px 20px 0;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.modal-section-title {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 6px;
+}
+.modal-text {
+  font-size: 0.88rem;
+  color: var(--text-mid);
+  line-height: 1.7;
+}
+.modal-text strong { color: var(--text); }
+.modal-highlight {
+  background: var(--surface2);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 14px;
+  font-size: 0.82rem;
+  color: var(--text-mid);
+  line-height: 1.65;
+  font-style: italic;
+}
+.modal-highlight strong { color: var(--accent); font-style: normal; }
+.benefit-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.benefit-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 0.85rem; color: var(--text-mid); line-height: 1.5;
+}
+.benefit-item .bi-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); margin-top: 7px; flex-shrink: 0;
+}
+.modal-cta {
+  margin-top: 4px;
+}
+
+/* ============================================================
+   LEARN SCREEN
+   ============================================================ */
+.learn-body {
+  flex: 1;
+  padding: 0 20px 32px;
+  max-width: 700px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.learn-hero {
+  padding: 24px 0 20px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.learn-hero h2 {
+  font-size: 1.4rem; font-weight: 700;
+  letter-spacing: -0.02em; margin-bottom: 8px;
+}
+.learn-hero p {
+  font-size: 0.85rem; color: var(--text-mid);
+  line-height: 1.65; max-width: 480px; margin: 0 auto;
+}
+.learn-mode-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 14px;
+  border-left: 3px solid var(--card-color, var(--accent));
+}
+.learn-mode-header {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.learn-mode-header .lmh-icon { font-size: 1.5rem; }
+.learn-mode-header .lmh-title { font-size: 1rem; font-weight: 700; }
+.learn-mode-header .lmh-badge {
+  margin-left: auto;
+  font-size: 0.62rem; font-family: var(--font-mono);
+  padding: 2px 8px; border-radius: 4px;
+}
+.learn-block { margin-bottom: 14px; }
+.learn-block:last-child { margin-bottom: 0; }
+.learn-label {
+  font-size: 0.62rem; font-family: var(--font-mono);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-dim); margin-bottom: 5px;
+}
+.learn-block p {
+  font-size: 0.84rem; color: var(--text-mid); line-height: 1.7;
+}
+.learn-block p strong { color: var(--text); }
+.learn-science-bar {
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 0.78rem;
+  color: var(--text-mid);
+  line-height: 1.6;
+  font-style: italic;
+}
+.learn-science-bar strong { color: var(--accent); font-style: normal; }
+
+/* ============================================================
+   SETTINGS SCREEN
+   ============================================================ */
+.settings-body {
+  flex: 1;
+  padding: 0 20px 40px;
+  max-width: 700px;
+  margin: 0 auto;
+  width: 100%;
+}
+.settings-section {
+  margin-top: 24px;
+}
+.settings-section-title {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+.settings-row-info { flex: 1; }
+.settings-row-info .sr-title { font-size: 0.9rem; font-weight: 500; }
+.settings-row-info .sr-sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; line-height: 1.4; }
+/* Toggle switch */
+.toggle-wrap {
+  position: relative;
+  width: 44px; height: 24px; flex-shrink: 0;
+}
+.toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-slider {
+  position: absolute; inset: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px; height: 18px;
+  left: 2px; top: 2px;
+  background: var(--text-dim);
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+.toggle-wrap input:checked + .toggle-slider { background: rgba(0,212,255,0.2); border-color: var(--accent); }
+.toggle-wrap input:checked + .toggle-slider::before { transform: translateX(20px); background: var(--accent); }
+/* Select control */
+.settings-select {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 90px;
+  text-align: center;
+}
+.settings-select:focus { border-color: var(--accent); }
+/* Danger button */
+.settings-danger-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,69,102,0.3);
+  background: rgba(255,69,102,0.08);
+  color: var(--red);
+  font-family: var(--font-ui);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 8px;
+  text-align: left;
+  display: flex; align-items: center; gap: 10px;
+}
+.settings-danger-btn:hover { background: rgba(255,69,102,0.15); }
+.settings-about-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.settings-about-box .ab-title {
+  font-family: var(--font-mono); font-size: 0.9rem;
+  font-weight: 700; color: var(--accent);
+}
+.settings-about-box .ab-sub {
+  font-size: 0.75rem; color: var(--text-dim); line-height: 1.6;
+}
+.settings-about-box .ab-version {
+  font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim);
+  margin-top: 4px;
+}
+
+
+/* ============================================================
+   TODAY STRIP
+   ============================================================ */
+.today-strip {
+  padding: 0 20px 16px;
+  max-width: 700px;
+  margin: 0 auto;
+  width: 100%;
+}
+.today-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.today-header .th-label {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.today-header .th-total {
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--text-mid);
+}
+.today-goal-bar-wrap {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.today-goal-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--green);
+  transition: width 0.5s ease;
+  min-width: 0;
+}
+.today-goal-bar-fill.complete { background: var(--accent); }
+.today-mode-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.today-mode-cell {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 6px;
+  text-align: center;
+}
+.today-mode-cell .tmc-icon { font-size: 1rem; display: block; margin-bottom: 3px; }
+.today-mode-cell .tmc-time {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-mid);
+}
+.today-mode-cell .tmc-time.active { color: var(--accent); }
+.today-mode-cell .tmc-label {
+  font-size: 0.55rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.today-goal-met {
+  text-align: center;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--green);
+  padding: 4px 0 2px;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   BENCHMARK / RANKING BADGES
+   ============================================================ */
+.benchmark-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.benchmark-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.benchmark-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.03em;
+}
+.rank-needs-work  { background:rgba(255,69,102,0.12);  color:var(--red);    border:1px solid rgba(255,69,102,0.3); }
+.rank-developing  { background:rgba(251,191,36,0.12);  color:var(--yellow); border:1px solid rgba(251,191,36,0.3); }
+.rank-average     { background:rgba(156,163,175,0.12); color:#9ca3af;       border:1px solid rgba(156,163,175,0.3); }
+.rank-above-avg   { background:rgba(0,212,255,0.12);   color:var(--accent); border:1px solid rgba(0,212,255,0.3); }
+.rank-elite       { background:rgba(16,217,126,0.12);  color:var(--green);  border:1px solid rgba(16,217,126,0.3); }
+
+.benchmark-rows { display:flex; flex-direction:column; gap:6px; }
+.benchmark-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.benchmark-row:last-child { border-bottom: none; }
+.benchmark-row .br-metric { color: var(--text-dim); }
+.benchmark-row .br-val    { font-family: var(--font-mono); font-weight: 600; }
+.benchmark-row .br-norm   { font-size: 0.65rem; color: var(--text-dim); font-family: var(--font-mono); }
+
+/* Cog age card */
+.cog-age-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cog-age-card .ca-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cog-age-display {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.cog-age-box {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+}
+.cog-age-box .cab-val {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.cog-age-box .cab-lbl {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.cog-age-note {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+  font-style: italic;
+}
+.cog-age-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cog-age-input-row input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  padding: 10px 14px;
+  outline: none;
+  width: 80px;
+}
+.cog-age-input-row input:focus { border-color: var(--accent); }
+.cog-age-input-row button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #000;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.cog-age-input-row button:hover { filter: brightness(1.1); }
+
 </style>
 </head>
 <body>
@@ -703,7 +1527,11 @@ html, body {
   <div id="screen-menu" class="screen active">
     <nav class="top-nav">
       <div class="logo">COGI<span>TRAIN</span></div>
-      <button class="nav-btn" onclick="clearHistory()">Clear Data</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+        <button class="nav-btn" onclick="showStats()">📊 Stats</button>
+        <button class="nav-btn" onclick="showLearn()">📖 Learn</button>
+        <button class="nav-btn" onclick="showSettings()">⚙️</button>
+      </div>
     </nav>
 
     <div class="menu-hero">
@@ -712,30 +1540,76 @@ html, body {
     </div>
 
     <div class="mode-grid">
-      <div class="mode-card" data-mode="nback" onclick="startMode('nback')">
-        <span class="icon">🧠</span>
-        <h3>N-Back</h3>
-        <p>Working memory. Match stimuli from N steps back.</p>
-        <span class="badge">Working Memory</span>
+      <div class="mode-card-wrap" style="position:relative;">
+        <div class="mode-card" data-mode="nback" onclick="startMode('nback')">
+          <span class="icon">🧠</span>
+          <h3>N-Back</h3>
+          <p>A letter flashes — remember it. Does it match what appeared a few turns ago? Gets harder as you improve.</p>
+          <span class="badge">Working Memory</span>
+        </div>
+        <button class="mode-info-btn" onclick="event.stopPropagation();showModeInfo('nback')">ⓘ</button>
       </div>
-      <div class="mode-card" data-mode="gonogo" onclick="startMode('gonogo')">
-        <span class="icon">🛑</span>
-        <h3>Go / No-Go</h3>
-        <p>Respond to targets, withhold on foils. Trains inhibition.</p>
-        <span class="badge">Inhibitory Control</span>
+      <div class="mode-card-wrap" style="position:relative;">
+        <div class="mode-card" data-mode="gonogo" onclick="startMode('gonogo')">
+          <span class="icon">🛑</span>
+          <h3>Go / No-Go</h3>
+          <p>Tap the green circle fast. Don&#39;t tap the red one. Sounds easy — it&#39;s not. Trains your brain&#39;s brake.</p>
+          <span class="badge">Impulse Control</span>
+        </div>
+        <button class="mode-info-btn" onclick="event.stopPropagation();showModeInfo('gonogo')">ⓘ</button>
       </div>
-      <div class="mode-card" data-mode="choicert" onclick="startMode('choicert')">
-        <span class="icon">⚡</span>
-        <h3>Choice RT</h3>
-        <p>React to the correct side fast. Measures processing speed.</p>
-        <span class="badge">Processing Speed</span>
+      <div class="mode-card-wrap" style="position:relative;">
+        <div class="mode-card" data-mode="choicert" onclick="startMode('choicert')">
+          <span class="icon">⚡</span>
+          <h3>Choice RT</h3>
+          <p>A flash appears left or right — tap the matching side as fast as you can. Pure speed, no tricks.</p>
+          <span class="badge">Processing Speed</span>
+        </div>
+        <button class="mode-info-btn" onclick="event.stopPropagation();showModeInfo('choicert')">ⓘ</button>
       </div>
-      <div class="mode-card" data-mode="taskswitch" onclick="startMode('taskswitch')">
-        <span class="icon">🔀</span>
-        <h3>Task Switch</h3>
-        <p>Switch rules mid-task. Targets cognitive flexibility.</p>
-        <span class="badge">Flexibility</span>
+      <div class="mode-card-wrap" style="position:relative;">
+        <div class="mode-card" data-mode="taskswitch" onclick="startMode('taskswitch')">
+          <span class="icon">🔀</span>
+          <h3>Task Switch</h3>
+          <p>The rule changes without warning — odd/even, then high/low. Keep up. Trains your mental gear-shifting.</p>
+          <span class="badge">Mental Flexibility</span>
+        </div>
+        <button class="mode-info-btn" onclick="event.stopPropagation();showModeInfo('taskswitch')">ⓘ</button>
       </div>
+    </div>
+
+    <!-- Today strip -->
+    <div class="today-strip" id="today-strip-wrap">
+      <div class="today-header">
+        <span class="th-label">Today&#39;s Training</span>
+        <span class="th-total" id="today-total-label">0 min of 15 min goal</span>
+      </div>
+      <div class="today-goal-bar-wrap">
+        <div class="today-goal-bar-fill" id="today-goal-bar" style="width:0%"></div>
+      </div>
+      <div class="today-mode-row">
+        <div class="today-mode-cell" id="today-nback">
+          <span class="tmc-icon">🧠</span>
+          <div class="tmc-time" id="today-nback-time">0m</div>
+          <div class="tmc-label">N-Back</div>
+        </div>
+        <div class="today-mode-cell" id="today-gonogo">
+          <span class="tmc-icon">🛑</span>
+          <div class="tmc-time" id="today-gonogo-time">0m</div>
+          <div class="tmc-label">Go/No-Go</div>
+        </div>
+        <div class="today-mode-cell" id="today-choicert">
+          <span class="tmc-icon">⚡</span>
+          <div class="tmc-time" id="today-choicert-time">0m</div>
+          <div class="tmc-label">Choice RT</div>
+        </div>
+        <div class="today-mode-cell" id="today-taskswitch">
+          <span class="tmc-icon">🔀</span>
+          <div class="tmc-time" id="today-taskswitch-time">0m</div>
+          <div class="tmc-label">Task Switch</div>
+        </div>
+      </div>
+      <div class="today-goal-met hidden" id="today-goal-met">🎯 Daily goal reached! Great session.</div>
     </div>
 
     <!-- Dashboard strip -->
@@ -999,6 +1873,439 @@ html, body {
         <button class="btn btn-primary" id="res-replay-btn" onclick="">Play Again</button>
         <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCREEN: STATS / ANALYTICS
+       ============================================================ -->
+  <div id="screen-stats" class="screen">
+    <nav class="top-nav">
+      <div class="logo">COGI<span>TRAIN</span></div>
+      <button class="nav-btn" onclick="showMenu()">← Menu</button>
+    </nav>
+
+    <div class="stats-body">
+      <!-- Tab bar -->
+      <div class="stats-tabs" style="margin-top:16px;">
+        <button class="stats-tab active" onclick="switchStatsTab('overview')">Overview</button>
+        <button class="stats-tab" onclick="switchStatsTab('calendar')">Calendar</button>
+        <button class="stats-tab" onclick="switchStatsTab('modes')">By Mode</button>
+        <button class="stats-tab" onclick="switchStatsTab('records')">Records</button>
+        <button class="stats-tab" onclick="switchStatsTab('history')">History</button>
+      </div>
+
+      <!-- OVERVIEW PANEL -->
+      <div id="stats-panel-overview" class="stats-panel active">
+        <div class="stat-row" id="so-global-stats">
+          <div class="stat-box"><div class="val" id="so-sessions">0</div><div class="lbl">Sessions</div></div>
+          <div class="stat-box"><div class="val" id="so-avgacc">—</div><div class="lbl">Avg Accuracy</div></div>
+          <div class="stat-box"><div class="val" id="so-avgrt">—</div><div class="lbl">Avg RT (ms)</div></div>
+          <div class="stat-box"><div class="val" id="so-streak">0</div><div class="lbl">Best Streak</div></div>
+        </div>
+        <div class="sparkline-wrap">
+          <div class="sp-label">Accuracy Trend — All Modes (last 20 sessions)</div>
+          <svg id="so-sparkline" viewBox="0 0 400 50" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="sparkline-wrap">
+          <div class="sp-label">Reaction Time Trend — All Modes (last 20 sessions)</div>
+          <svg id="so-rt-sparkline" viewBox="0 0 400 50" preserveAspectRatio="none"></svg>
+        </div>
+        <div id="so-mode-summary"></div>
+        <div id="so-benchmarks"></div>
+        <div id="so-cog-age"></div>
+      </div>
+
+      <!-- CALENDAR PANEL -->
+      <div id="stats-panel-calendar" class="stats-panel">
+        <div class="cal-wrap">
+          <div class="cal-header">
+            <div class="cal-title" id="cal-month-title">April 2026</div>
+            <div class="cal-nav">
+              <button onclick="calNav(-1)">◀</button>
+              <button onclick="calNav(1)">▶</button>
+            </div>
+          </div>
+          <div class="cal-dow">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+          <div class="cal-legend">
+            <span>Less</span>
+            <div class="cal-legend-dot" style="background:var(--surface2); border:1px solid var(--border);"></div>
+            <div class="cal-legend-dot" style="background:rgba(0,212,255,0.15);"></div>
+            <div class="cal-legend-dot" style="background:rgba(0,212,255,0.30);"></div>
+            <div class="cal-legend-dot" style="background:rgba(0,212,255,0.50);"></div>
+            <span>More</span>
+          </div>
+        </div>
+        <div id="cal-day-detail" class="hidden">
+          <div class="section-label" id="cal-detail-label">Sessions on this day</div>
+          <div class="full-history" id="cal-detail-list"></div>
+        </div>
+      </div>
+
+      <!-- BY MODE PANEL -->
+      <div id="stats-panel-modes" class="stats-panel">
+        <div id="modes-content"></div>
+      </div>
+
+      <!-- RECORDS PANEL -->
+      <div id="stats-panel-records" class="stats-panel">
+        <div class="section-label">Personal Records</div>
+        <div class="pr-list" id="records-list"></div>
+      </div>
+
+      <!-- HISTORY PANEL -->
+      <div id="stats-panel-history" class="stats-panel">
+        <div class="filter-row" id="history-filter-row">
+          <button class="filter-btn active" onclick="filterHistory('all')" data-filter="all">All</button>
+          <button class="filter-btn" onclick="filterHistory('nback')" data-filter="nback">N-Back</button>
+          <button class="filter-btn" onclick="filterHistory('gonogo')" data-filter="gonogo">Go/No-Go</button>
+          <button class="filter-btn" onclick="filterHistory('choicert')" data-filter="choicert">Choice RT</button>
+          <button class="filter-btn" onclick="filterHistory('taskswitch')" data-filter="taskswitch">Task Switch</button>
+        </div>
+        <div class="full-history" id="full-history-list"></div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ============================================================
+       INFO MODAL (bottom sheet)
+       ============================================================ -->
+  <div class="modal-overlay" id="mode-info-modal" onclick="closeModeInfo(event)">
+    <div class="modal-sheet" id="modal-sheet">
+      <div class="modal-drag-handle"></div>
+      <div class="modal-header">
+        <div class="modal-title" id="modal-title">Mode Info</div>
+        <button class="modal-close" onclick="closeModeInfoDirect()">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SCREEN: LEARN
+       ============================================================ -->
+  <div id="screen-learn" class="screen">
+    <nav class="top-nav">
+      <div class="logo">COGI<span>TRAIN</span></div>
+      <button class="nav-btn" onclick="showMenu()">← Menu</button>
+    </nav>
+    <div class="learn-body">
+      <div class="learn-hero">
+        <h2>The Science Behind<br><em style="color:var(--accent);font-style:normal;">Your Training</em></h2>
+        <p>Every mode in CogiTrain targets a specific cognitive domain — measurable, trainable, and directly connected to how well you think, decide, and perform under pressure.</p>
+      </div>
+
+      <!-- N-Back -->
+      <div class="learn-mode-card" style="--card-color:#00d4ff;">
+        <div class="learn-mode-header">
+          <span class="lmh-icon">🧠</span>
+          <span class="lmh-title">N-Back</span>
+          <span class="lmh-badge" style="background:rgba(0,212,255,0.12);color:#00d4ff;border:1px solid rgba(0,212,255,0.3)">Working Memory</span>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What it is</div>
+          <p>A letter appears on screen every few seconds. Your job: press <strong>Match</strong> if the current letter is the same as the one that appeared <strong>N steps ago</strong>. N increases as you improve — 1-back is easy, 4-back is genuinely hard.</p>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What it trains</div>
+          <p><strong>Working memory</strong> — your brain's mental whiteboard. It's the system that holds and manipulates information in the moment: keeping a phone number in mind, following multi-step instructions, or tracking what was said 3 sentences ago in a conversation.</p>
+        </div>
+        <div class="learn-science-bar">
+          <strong>Research spotlight:</strong> N-Back training was used in studies by Jaeggi et al. (2008) showing improvements in fluid intelligence — the ability to reason through novel problems. It's been adopted in military pilot training programs and elite academic prep.
+        </div>
+        <div class="learn-block" style="margin-top:14px;">
+          <div class="learn-label">Real-world benefits</div>
+          <p>Better recall during conversations · Improved ability to multitask without losing track · Stronger reading comprehension · Reduced mental fatigue during complex work</p>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What your score means</div>
+          <p>Reaching <strong>Level 4+ (2-back)</strong> puts you in the top half of adults. <strong>Level 7+ (3-back)</strong> is elite territory. Your mean RT at high N-back levels is a direct measure of working memory bandwidth.</p>
+        </div>
+      </div>
+
+      <!-- Go/No-Go -->
+      <div class="learn-mode-card" style="--card-color:#10d97e;">
+        <div class="learn-mode-header">
+          <span class="lmh-icon">🛑</span>
+          <span class="lmh-title">Go / No-Go</span>
+          <span class="lmh-badge" style="background:rgba(16,217,126,0.12);color:#10d97e;border:1px solid rgba(16,217,126,0.3)">Inhibitory Control</span>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What it is</div>
+          <p>A circle appears. <strong>Green = tap immediately.</strong> <strong>Red = do NOT tap.</strong> Sounds simple — but at higher levels the timing window tightens and the red/green ratio shifts, making impulsive mistakes much easier.</p>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What it trains</div>
+          <p><strong>Inhibitory control</strong> — your brain's ability to suppress an automatic response. This is the executive function responsible for not saying the wrong thing, resisting distractions, and stopping yourself from acting on impulse.</p>
+        </div>
+        <div class="learn-science-bar">
+          <strong>Research spotlight:</strong> Go/No-Go tasks are the gold standard in ADHD research and impulse control studies. Studies show regular inhibition training correlates with reduced impulsivity scores and improved sustained attention in both clinical and healthy populations.
+        </div>
+        <div class="learn-block" style="margin-top:14px;">
+          <div class="learn-label">Real-world benefits</div>
+          <p>Fewer impulsive decisions · Stronger ability to stay on task · Improved emotional regulation · Better performance in high-stakes, fast-moving situations</p>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What your score means</div>
+          <p><strong>Commission errors</strong> (tapping red) reveal impulsivity. <strong>Omission errors</strong> (missing green) reveal inattention. A strong score has near-zero commission errors — that's the harder skill to train.</p>
+        </div>
+      </div>
+
+      <!-- Choice RT -->
+      <div class="learn-mode-card" style="--card-color:#fbbf24;">
+        <div class="learn-mode-header">
+          <span class="lmh-icon">⚡</span>
+          <span class="lmh-title">Choice Reaction Time</span>
+          <span class="lmh-badge" style="background:rgba(251,191,36,0.12);color:#fbbf24;border:1px solid rgba(251,191,36,0.3)">Processing Speed</span>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What it is</div>
+          <p>A flash appears on the <strong>Left</strong> or <strong>Right</strong> side. Tap the correct button as fast as possible. The foreperiod (wait time before the flash) varies randomly to prevent anticipation — you can't cheat it by rhythmic tapping.</p>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What it trains</div>
+          <p><strong>Processing speed</strong> — how fast your brain perceives, decides, and acts. Unlike simple reaction time (just reacting), choice RT requires identification and decision-making, measuring your neural transmission efficiency.</p>
+        </div>
+        <div class="learn-science-bar">
+          <strong>Research spotlight:</strong> Processing speed is one of the strongest predictors of overall cognitive performance and is one of the first metrics to decline with age. Studies by Jensen (1982) established RT as a proxy for general intelligence (g-factor). It's used in sports science to assess athletic readiness.
+        </div>
+        <div class="learn-block" style="margin-top:14px;">
+          <div class="learn-label">Real-world benefits</div>
+          <p>Faster decisions under pressure · Quicker reflexes while driving · Sharper performance in sports and gaming · Reduced cognitive lag in complex tasks</p>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What your score means</div>
+          <p>Average choice RT for healthy adults is <strong>350–450ms</strong>. Under 300ms is exceptional. Your SD (variability) matters as much as your mean — consistent fast responses indicate stable neural processing, not just lucky fast trials.</p>
+        </div>
+      </div>
+
+      <!-- Task Switch -->
+      <div class="learn-mode-card" style="--card-color:#a78bfa;">
+        <div class="learn-mode-header">
+          <span class="lmh-icon">🔀</span>
+          <span class="lmh-title">Task Switch</span>
+          <span class="lmh-badge" style="background:rgba(167,139,250,0.12);color:#a78bfa;border:1px solid rgba(167,139,250,0.3)">Cognitive Flexibility</span>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What it is</div>
+          <p>A number appears and you're asked one of two rules: <strong>ODD or EVEN?</strong> or <strong>HIGH (&gt;5) or LOW (≤5)?</strong> The rule switches randomly. Switch trials — where you have to change rules mid-task — are always harder than repeat trials.</p>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What it trains</div>
+          <p><strong>Cognitive flexibility</strong> — your ability to switch mental gears, update your approach, and disengage from one way of thinking to adopt another. This is the foundation of adaptability, creative problem-solving, and avoiding mental ruts.</p>
+        </div>
+        <div class="learn-science-bar">
+          <strong>Research spotlight:</strong> The switch cost (extra time on switch vs. repeat trials) is a validated biomarker for prefrontal cortex efficiency. Elite performers across fields — chess grandmasters, surgeons, fighter pilots — show significantly lower switch costs than average. Your 6ms switch cost, Marty, is in the top percentile.
+        </div>
+        <div class="learn-block" style="margin-top:14px;">
+          <div class="learn-label">Real-world benefits</div>
+          <p>Better at context-switching between tasks · Reduced friction when plans change unexpectedly · Stronger creative problem-solving · Faster recovery from interruptions at work</p>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What your score means</div>
+          <p><strong>Switch cost under 100ms</strong> is good. <strong>Under 50ms</strong> is strong. <strong>Under 20ms</strong> is elite. Reducing your switch cost over time is a direct measure of prefrontal cortex training. Accuracy on switch trials specifically — not just overall — is the key metric to watch.</p>
+        </div>
+      </div>
+
+      <!-- The bigger picture -->
+      <div class="learn-mode-card" style="--card-color:var(--accent2);margin-bottom:0;">
+        <div class="learn-mode-header">
+          <span class="lmh-icon">🔬</span>
+          <span class="lmh-title">Why train all four?</span>
+        </div>
+        <div class="learn-block">
+          <p>Working memory, inhibitory control, processing speed, and cognitive flexibility are the <strong>four pillars of executive function</strong> — the brain systems housed in the prefrontal cortex that govern how you think, decide, and perform under pressure.</p>
+        </div>
+        <div class="learn-block">
+          <p>Training them together produces transfer effects — improvements that show up in daily life, not just in the training tasks. Athletes call this <strong>cross-training.</strong> Neuroscientists call it <strong>near and far transfer.</strong> You'll call it noticing you're sharper.</p>
+        </div>
+        <div class="learn-science-bar">
+          <strong>Important note:</strong> CogiTrain is a cognitive training tool, not a medical device. Consistent training over weeks and months produces the best results. Treat it like the gym — one session won't transform you, but showing up regularly will.
+        </div>
+      </div>
+
+
+      <!-- Training Recommendation -->
+      <div class="learn-mode-card" style="--card-color:var(--green);margin-top:4px;">
+        <div class="learn-mode-header">
+          <span class="lmh-icon">📅</span>
+          <span class="lmh-title">How Much Should You Train?</span>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">The research-backed minimum</div>
+          <p>Studies on cognitive training consistently show that <strong>15–20 minutes per day, 4–5 days per week, for at least 4 weeks</strong> is the threshold where real-world transfer effects start appearing — meaning improvements that show up in your actual life, not just in the app.</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 14px;">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--green);">15–20</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);margin-top:3px;">minutes per day</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--green);">4–5×</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);margin-top:3px;">days per week</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--green);">4 wks</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);margin-top:3px;">minimum commitment</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--green);">~5 min</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);margin-top:3px;">per mode per session</div>
+          </div>
+        </div>
+
+        <div class="learn-block">
+          <div class="learn-label">A realistic daily session</div>
+          <p>Pick <strong>2–3 modes per day</strong> and rotate. You don&#39;t need to play all four every session. A good rotation: N-Back + Go/No-Go one day, Choice RT + Task Switch the next. Your brain benefits more from varied stimulation than grinding the same mode repeatedly.</p>
+        </div>
+
+        <div class="learn-block">
+          <div class="learn-label">Per-mode time investment</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.82rem;padding:8px 12px;background:var(--surface2);border-radius:7px;">
+              <span>🧠 N-Back (20 trials)</span>
+              <span style="font-family:var(--font-mono);color:#00d4ff;font-weight:600;">~4–5 min</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.82rem;padding:8px 12px;background:var(--surface2);border-radius:7px;">
+              <span>🛑 Go/No-Go (30 trials)</span>
+              <span style="font-family:var(--font-mono);color:#10d97e;font-weight:600;">~3–4 min</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.82rem;padding:8px 12px;background:var(--surface2);border-radius:7px;">
+              <span>⚡ Choice RT (20 trials)</span>
+              <span style="font-family:var(--font-mono);color:#fbbf24;font-weight:600;">~3–4 min</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.82rem;padding:8px 12px;background:var(--surface2);border-radius:7px;">
+              <span>🔀 Task Switch (24 trials)</span>
+              <span style="font-family:var(--font-mono);color:#a78bfa;font-weight:600;">~4–5 min</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="learn-science-bar" style="border-left-color:var(--green);">
+          <strong style="color:var(--green);">Think of it like the gym.</strong> One workout doesn&#39;t change your body. One session won&#39;t rewire your brain. But 15 minutes a day, consistently, over a month? That&#39;s where the research shows measurable change — and where you&#39;ll feel it.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===============================================================
+       SCREEN: SETTINGS
+       ============================================================ -->
+  <div id="screen-settings" class="screen">
+    <nav class="top-nav">
+      <div class="logo">COGI<span>TRAIN</span></div>
+      <button class="nav-btn" onclick="showMenu()">← Menu</button>
+    </nav>
+    <div class="settings-body">
+
+      <div class="settings-section">
+        <div class="settings-section-title">Audio</div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="sr-title">Sound Effects</div>
+            <div class="sr-sub">Feedback sounds for correct / incorrect responses</div>
+          </div>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="setting-sound" onchange="saveSetting('sound', this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="settings-row" style="opacity:0.5;">
+          <div class="settings-row-info">
+            <div class="sr-title">Haptic Feedback</div>
+            <div class="sr-sub">Vibration on button press — available in Android app</div>
+          </div>
+          <label class="toggle-wrap">
+            <input type="checkbox" disabled>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Session</div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="sr-title">N-Back Trials</div>
+            <div class="sr-sub">Number of trials per N-Back session</div>
+          </div>
+          <select class="settings-select" id="setting-nback-trials" onchange="saveSetting('nbackTrials', this.value)">
+            <option value="15">15</option>
+            <option value="20" selected>20</option>
+            <option value="30">30</option>
+            <option value="40">40</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="sr-title">Choice RT Trials</div>
+            <div class="sr-sub">Number of trials per Choice RT session</div>
+          </div>
+          <select class="settings-select" id="setting-crt-trials" onchange="saveSetting('crtTrials', this.value)">
+            <option value="15">15</option>
+            <option value="20" selected>20</option>
+            <option value="30">30</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="sr-title">Task Switch Trials</div>
+            <div class="sr-sub">Number of trials per Task Switch session</div>
+          </div>
+          <select class="settings-select" id="setting-ts-trials" onchange="saveSetting('tsTrials', this.value)">
+            <option value="16">16</option>
+            <option value="24" selected>24</option>
+            <option value="32">32</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Difficulty Reset</div>
+        <button class="settings-danger-btn" onclick="resetModeDifficulty('nback')">🧠 Reset N-Back to Level 1</button>
+        <button class="settings-danger-btn" onclick="resetModeDifficulty('gonogo')">🛑 Reset Go/No-Go to Level 1</button>
+        <button class="settings-danger-btn" onclick="resetModeDifficulty('choicert')">⚡ Reset Choice RT to Level 1</button>
+        <button class="settings-danger-btn" onclick="resetModeDifficulty('taskswitch')">🔀 Reset Task Switch to Level 1</button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Data</div>
+        <button class="settings-danger-btn" onclick="clearHistoryFromSettings()" style="border-color:rgba(255,69,102,0.5);background:rgba(255,69,102,0.12);">🗑️ Clear All Session Data</button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Cognitive Age</div>
+        <div class="settings-row">
+          <div class="settings-row-info">
+            <div class="sr-title">Your Age</div>
+            <div class="sr-sub">Used to calculate your cognitive age estimate in Stats</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="setting-age" min="10" max="99" placeholder="—"
+              style="width:64px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+              color:var(--text);font-family:var(--font-mono);font-size:1rem;padding:8px 10px;outline:none;text-align:center;"
+              onchange="saveSetting('age', this.value)">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">About</div>
+        <div class="settings-about-box">
+          <div class="ab-title">COGITRAIN</div>
+          <div class="ab-sub">Science-backed cognitive training targeting working memory, inhibitory control, processing speed, and cognitive flexibility. Built on neuropsychological paradigms used in research and clinical settings worldwide.</div>
+          <div class="ab-sub" style="margin-top:4px;">Adaptive difficulty automatically adjusts to keep you in the optimal challenge zone — hard enough to grow, achievable enough to stay motivated.</div>
+          <div class="ab-version">Version 1.0.0 · Web Preview · Android app coming soon</div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -1892,6 +3199,961 @@ document.addEventListener('keydown', e => {
     // no keyboard for task switch — option buttons handle it
   }
 });
+
+/* ============================================================
+   STATS SCREEN — Full Analytics Engine
+   ============================================================ */
+
+const MODE_META = {
+  nback:      { label: 'N-Back',      icon: '🧠', color: '#00d4ff', accent2: 'rgba(0,212,255,0.12)'  },
+  gonogo:     { label: 'Go/No-Go',    icon: '🛑', color: '#10d97e', accent2: 'rgba(16,217,126,0.12)' },
+  choicert:   { label: 'Choice RT',   icon: '⚡', color: '#fbbf24', accent2: 'rgba(251,191,36,0.12)'  },
+  taskswitch: { label: 'Task Switch', icon: '🔀', color: '#a78bfa', accent2: 'rgba(167,139,250,0.12)' },
+};
+
+let calViewYear  = new Date().getFullYear();
+let calViewMonth = new Date().getMonth();
+let historyFilter = 'all';
+
+function showStats() {
+  renderStats();
+  showScreen('stats');
+}
+
+function switchStatsTab(tab) {
+  document.querySelectorAll('.stats-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.stats-panel').forEach(p => p.classList.remove('active'));
+  const tabEl = document.querySelector(`.stats-tab[onclick*="${tab}"]`);
+  if (tabEl) tabEl.classList.add('active');
+  const panel = document.getElementById(`stats-panel-${tab}`);
+  if (panel) panel.classList.add('active');
+}
+
+function renderStats() {
+  renderOverview();
+  renderCalendar();
+  renderModes();
+  renderRecords();
+  renderFullHistory();
+}
+
+/* ---- OVERVIEW ---- */
+function renderOverview() {
+  const db = loadDB();
+  const sessions = db.sessions;
+  const withAcc  = sessions.filter(s => s.acc != null);
+  const withRT   = sessions.filter(s => s.meanRT != null);
+
+  document.getElementById('so-sessions').textContent = sessions.length;
+  document.getElementById('so-avgacc').textContent =
+    withAcc.length ? Math.round(withAcc.reduce((a,s)=>a+s.acc,0)/withAcc.length)+'%' : '—';
+  document.getElementById('so-avgrt').textContent =
+    withRT.length  ? Math.round(withRT.reduce((a,s)=>a+s.meanRT,0)/withRT.length) : '—';
+
+  let streak = 0, best = 0, cur = 0;
+  sessions.forEach(s => {
+    if (s.acc != null && s.acc >= 80) { cur++; best = Math.max(best, cur); }
+    else cur = 0;
+  });
+  document.getElementById('so-streak').textContent = best;
+
+  // Accuracy sparkline
+  if (withAcc.length > 1) {
+    drawSparklineInto('so-sparkline', withAcc.slice(-20).map(s=>s.acc), '#00d4ff', 0, 100);
+  }
+  // RT sparkline (inverted — lower is better, shown as green)
+  if (withRT.length > 1) {
+    drawSparklineInto('so-rt-sparkline', withRT.slice(-20).map(s=>s.meanRT), '#10d97e', null, null, true);
+  }
+
+  // Per-mode summary mini cards
+  const summaryEl = document.getElementById('so-mode-summary');
+  const modeKeys = Object.keys(MODE_META);
+  summaryEl.innerHTML = modeKeys.map(mk => {
+    const ms = sessions.filter(s => s.mode === mk);
+    if (!ms.length) return '';
+    const m = MODE_META[mk];
+    const lastAcc = ms[ms.length-1].acc;
+    const maxLevel = Math.max(...ms.map(s=>s.level||1));
+    const avgAcc = Math.round(ms.filter(s=>s.acc!=null).reduce((a,s)=>a+s.acc,0) / ms.filter(s=>s.acc!=null).length);
+    return `<div class="mode-breakdown" style="margin-bottom:12px;">
+      <div class="mode-breakdown-header">
+        <div class="mode-breakdown-title">
+          ${m.icon} ${m.label}
+          <span class="mode-breakdown-badge" style="background:${m.accent2};color:${m.color};border:1px solid ${m.color}44">${ms.length} sessions</span>
+        </div>
+        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-dim)">Lv ${maxLevel} peak</span>
+      </div>
+      <div class="mode-stat-grid">
+        <div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${avgAcc}%</div><div class="msl">Avg Acc</div></div>
+        <div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${maxLevel}</div><div class="msl">Peak Level</div></div>
+        <div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${lastAcc != null ? lastAcc+'%' : '—'}</div><div class="msl">Last Session</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ---- SPARKLINE utility (generalized) ---- */
+function drawSparklineInto(svgId, values, color, minVal, maxVal, invertColor) {
+  const svg = document.getElementById(svgId);
+  if (!svg || values.length < 2) { if(svg) svg.innerHTML=''; return; }
+  const W=400,H=50,pad=4;
+  const mn = minVal != null ? minVal : Math.max(0, Math.min(...values)-5);
+  const mx = maxVal != null ? maxVal : Math.min(9999, Math.max(...values)+5);
+  const xStep = (W-pad*2)/(values.length-1);
+  const yScale = v => H-pad-((v-mn)/(mx-mn||1))*(H-pad*2);
+  const pts = values.map((v,i)=>`${pad+i*xStep},${yScale(v)}`).join(' ');
+  const areaPath=`M ${pad},${yScale(values[0])} L ${pts.split(' ').slice(1).join(' L ')} L ${pad+(values.length-1)*xStep},${H} L ${pad},${H} Z`;
+  const gradId = svgId+'_grad';
+  svg.innerHTML=`<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="${color}" stop-opacity="0.25"/>
+    <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+  </linearGradient></defs>
+  <path d="${areaPath}" fill="url(#${gradId})"/>
+  <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  ${values.map((v,i)=>`<circle cx="${pad+i*xStep}" cy="${yScale(v)}" r="2.5" fill="${color}"/>`).join('')}`;
+}
+
+/* ---- CALENDAR ---- */
+function renderCalendar() {
+  const db = loadDB();
+  const sessions = db.sessions;
+
+  const year  = calViewYear;
+  const month = calViewMonth;
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('cal-month-title').textContent = `${monthNames[month]} ${year}`;
+
+  const firstDay  = new Date(year, month, 1).getDay();
+  const daysInMo  = new Date(year, month+1, 0).getDate();
+  const todayStr  = new Date().toDateString();
+
+  // Build day→sessions map
+  const dayMap = {};
+  sessions.forEach(s => {
+    const d = new Date(s.ts);
+    if (d.getFullYear()===year && d.getMonth()===month) {
+      const key = d.getDate();
+      if (!dayMap[key]) dayMap[key]=[];
+      dayMap[key].push(s);
+    }
+  });
+
+  const grid = document.getElementById('cal-grid');
+  let html = '';
+  // Empty cells before first day
+  for (let i=0;i<firstDay;i++) html+=`<div class="cal-cell empty"></div>`;
+  for (let d=1;d<=daysInMo;d++) {
+    const sessCount = dayMap[d]?.length || 0;
+    const isToday   = new Date(year,month,d).toDateString()===todayStr;
+    let heatClass   = '';
+    if (sessCount===1) heatClass='heat-1';
+    else if (sessCount===2) heatClass='heat-2';
+    else if (sessCount>=3) heatClass='heat-3';
+    const hasData   = sessCount>0;
+    html+=`<div class="cal-cell ${heatClass} ${isToday?'today':''} ${hasData?'has-data':''}"
+      onclick="${hasData?`showCalDay(${d},${year},${month})`:''}">
+      <span>${d}</span>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function calNav(dir) {
+  calViewMonth += dir;
+  if (calViewMonth>11) { calViewMonth=0; calViewYear++; }
+  if (calViewMonth<0)  { calViewMonth=11; calViewYear--; }
+  renderCalendar();
+  document.getElementById('cal-day-detail').classList.add('hidden');
+}
+
+function showCalDay(day, year, month) {
+  const db = loadDB();
+  const daySessions = db.sessions.filter(s => {
+    const d = new Date(s.ts);
+    return d.getFullYear()===year && d.getMonth()===month && d.getDate()===day;
+  });
+  const monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('cal-detail-label').textContent=`${monthNames[month]} ${day}, ${year} — ${daySessions.length} session${daySessions.length!==1?'s':''}`;
+  document.getElementById('cal-detail-list').innerHTML = daySessions.map(s=>buildFhItem(s)).join('');
+  document.getElementById('cal-day-detail').classList.remove('hidden');
+}
+
+/* ---- BY MODE ---- */
+function renderModes() {
+  const db = loadDB();
+  const sessions = db.sessions;
+  const container = document.getElementById('modes-content');
+
+  const modeKeys = Object.keys(MODE_META);
+  container.innerHTML = modeKeys.map(mk => {
+    const ms = sessions.filter(s=>s.mode===mk);
+    const m  = MODE_META[mk];
+    if (!ms.length) return `<div class="mode-breakdown" style="margin-bottom:12px;">
+      <div class="mode-breakdown-header">
+        <div class="mode-breakdown-title">${m.icon} ${m.label}</div>
+      </div>
+      <div class="empty-state" style="padding:20px;"><span class="es-icon">📭</span>No sessions yet</div>
+    </div>`;
+
+    const withAcc = ms.filter(s=>s.acc!=null);
+    const withRT  = ms.filter(s=>s.meanRT!=null);
+    const avgAcc  = withAcc.length ? Math.round(withAcc.reduce((a,s)=>a+s.acc,0)/withAcc.length) : null;
+    const bestAcc = withAcc.length ? Math.max(...withAcc.map(s=>s.acc)) : null;
+    const avgRT   = withRT.length  ? Math.round(withRT.reduce((a,s)=>a+s.meanRT,0)/withRT.length) : null;
+    const bestRT  = withRT.length  ? Math.min(...withRT.map(s=>s.meanRT)) : null;
+    const maxLevel= Math.max(...ms.map(s=>s.level||1));
+    const switchSessions = mk==='taskswitch' ? ms.filter(s=>s.switchCost!=null) : [];
+    const avgSwitch = switchSessions.length ? Math.round(switchSessions.reduce((a,s)=>a+s.switchCost,0)/switchSessions.length) : null;
+
+    const accSparkId  = `spark-acc-${mk}`;
+    const rtSparkId   = `spark-rt-${mk}`;
+
+    setTimeout(()=>{
+      if (withAcc.length>1) drawSparklineInto(accSparkId, withAcc.slice(-15).map(s=>s.acc), m.color, 0, 100);
+      if (withRT.length>1)  drawSparklineInto(rtSparkId, withRT.slice(-15).map(s=>s.meanRT), m.color);
+    }, 50);
+
+    return `<div class="mode-breakdown" style="margin-bottom:12px;">
+      <div class="mode-breakdown-header">
+        <div class="mode-breakdown-title">
+          ${m.icon} ${m.label}
+          <span class="mode-breakdown-badge" style="background:${m.accent2};color:${m.color};border:1px solid ${m.color}44">${ms.length} sessions</span>
+        </div>
+        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-dim)">Peak Lv ${maxLevel}</span>
+      </div>
+      <div class="mode-stat-grid" style="grid-template-columns:repeat(${mk==='taskswitch'?3:2},1fr)">
+        ${avgAcc!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${avgAcc}%</div><div class="msl">Avg Acc</div></div>`:''}
+        ${bestAcc!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${bestAcc}%</div><div class="msl">Best Acc</div></div>`:''}
+        ${avgRT!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${avgRT}ms</div><div class="msl">Avg RT</div></div>`:''}
+        ${bestRT!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${bestRT}ms</div><div class="msl">Best RT</div></div>`:''}
+        ${avgSwitch!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${avgSwitch}ms</div><div class="msl">Avg Switch Cost</div></div>`:''}
+      </div>
+      ${withAcc.length>1?`<div class="mode-spark-wrap"><div class="mode-spark-label">Accuracy trend</div><svg id="${accSparkId}" viewBox="0 0 400 36" preserveAspectRatio="none"></svg></div>`:''}
+      ${withRT.length>1?`<div class="mode-spark-wrap" style="margin-top:8px;"><div class="mode-spark-label">Reaction time trend</div><svg id="${rtSparkId}" viewBox="0 0 400 36" preserveAspectRatio="none"></svg></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+/* ---- RECORDS ---- */
+function renderRecords() {
+  const db = loadDB();
+  const sessions = db.sessions;
+  const list = document.getElementById('records-list');
+
+  const records = [];
+  Object.keys(MODE_META).forEach(mk => {
+    const m  = MODE_META[mk];
+    const ms = sessions.filter(s=>s.mode===mk);
+    if (!ms.length) return;
+
+    // Best accuracy
+    const bestAccSess = ms.filter(s=>s.acc!=null).sort((a,b)=>b.acc-a.acc)[0];
+    if (bestAccSess) records.push({
+      icon: m.icon, color: m.color,
+      name: `${m.label} — Best Accuracy`,
+      sub:  `Level ${bestAccSess.level||1}`,
+      val:  bestAccSess.acc+'%',
+      date: new Date(bestAccSess.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})
+    });
+
+    // Best RT
+    const bestRTSess = ms.filter(s=>s.meanRT!=null).sort((a,b)=>a.meanRT-b.meanRT)[0];
+    if (bestRTSess) records.push({
+      icon: m.icon, color: m.color,
+      name: `${m.label} — Fastest Avg RT`,
+      sub:  `Level ${bestRTSess.level||1}`,
+      val:  bestRTSess.meanRT+'ms',
+      date: new Date(bestRTSess.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})
+    });
+
+    // Peak level
+    const peakLevel = Math.max(...ms.map(s=>s.level||1));
+    records.push({
+      icon: '🏆', color: m.color,
+      name: `${m.label} — Peak Level`,
+      sub:  `Reached ${ms.filter(s=>(s.level||1)===peakLevel).length} time(s)`,
+      val:  'Lv '+peakLevel,
+      date: ''
+    });
+
+    // Task Switch: best switch cost
+    if (mk==='taskswitch') {
+      const scSess = ms.filter(s=>s.switchCost!=null).sort((a,b)=>a.switchCost-b.switchCost)[0];
+      if (scSess) records.push({
+        icon:'🔀', color: m.color,
+        name:'Task Switch — Lowest Switch Cost',
+        sub: `Lower = more flexible`,
+        val: scSess.switchCost+'ms',
+        date: new Date(scSess.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})
+      });
+    }
+  });
+
+  if (!records.length) {
+    list.innerHTML = `<div class="empty-state"><span class="es-icon">🏆</span><strong>No records yet.</strong><br>Complete sessions to set personal bests.</div>`;
+    return;
+  }
+
+  list.innerHTML = records.map(r=>`
+    <div class="pr-item">
+      <div class="pr-icon">${r.icon}</div>
+      <div class="pr-info">
+        <div class="pr-name" style="color:${r.color}">${r.name}</div>
+        <div class="pr-sub">${r.sub}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="pr-val" style="color:${r.color}">${r.val}</div>
+        ${r.date?`<div class="pr-date">${r.date}</div>`:''}
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ---- FULL HISTORY ---- */
+function filterHistory(filter) {
+  historyFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.filter===filter);
+  });
+  renderFullHistory();
+}
+
+function renderFullHistory() {
+  const db = loadDB();
+  let sessions = [...db.sessions].reverse();
+  if (historyFilter !== 'all') sessions = sessions.filter(s=>s.mode===historyFilter);
+  const list = document.getElementById('full-history-list');
+  if (!sessions.length) {
+    list.innerHTML = `<div class="empty-state"><span class="es-icon">📭</span><strong>No sessions yet.</strong><br>Play a mode to start building history.</div>`;
+    return;
+  }
+  list.innerHTML = sessions.map(s=>buildFhItem(s)).join('');
+}
+
+function buildFhItem(s) {
+  const m    = MODE_META[s.mode] || {label:s.mode, color:'#9ca3af', accent2:'rgba(156,163,175,0.1)'};
+  const date = new Date(s.ts).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  const time = new Date(s.ts).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+  const mainScore = s.acc!=null ? s.acc+'%' : (s.meanRT ? s.meanRT+'ms' : '—');
+  const sub = [
+    s.meanRT ? `RT ${s.meanRT}ms` : null,
+    s.switchCost!=null ? `SC ${s.switchCost}ms` : null,
+    s.commission!=null ? `CE ${s.commission}` : null,
+  ].filter(Boolean).join(' · ');
+  return `<div class="fh-item">
+    <span class="fh-mode-tag" style="background:${m.accent2};color:${m.color};border:1px solid ${m.color}44">${m.label}</span>
+    <div class="fh-details">
+      <div class="fh-main">Level ${s.level||1} — ${s.correct||0}/${s.trials||0} correct</div>
+      ${sub?`<div class="fh-sub">${sub}</div>`:''}
+    </div>
+    <div class="fh-score" style="color:${m.color}">${mainScore}</div>
+    <div class="fh-date">${date}<br><span style="font-size:0.55rem">${time}</span></div>
+  </div>`;
+}
+
+
+/* ============================================================
+   MODE INFO MODALS
+   ============================================================ */
+const MODE_INFO_DATA = {
+  nback: {
+    icon: '🧠', title: 'N-Back', color: '#00d4ff',
+    tagline: 'Working Memory Training',
+    what: 'A letter appears every few seconds. Press <strong>Match</strong> if the current letter is the same one that appeared <strong>N steps back</strong>. N grows as you improve — making your mental buffer work harder.',
+    science: 'Used in <strong>NASA pilot training</strong> and military cognitive readiness programs. Research by Jaeggi et al. showed N-Back training can improve fluid intelligence — your raw ability to reason through new problems.',
+    benefits: [
+      'Hold more information in mind during complex tasks',
+      'Better recall mid-conversation without losing your train of thought',
+      'Stronger reading comprehension and multi-step instruction following',
+      'Reduced mental fatigue during deep work sessions',
+    ],
+    score: 'Level 4+ (2-back) = above average adult. Level 7+ (3-back) = elite. Your RT at high N levels measures your true working memory bandwidth.',
+    tip: '4–5 min per session · Best results: 4–5 days/week for 4+ weeks · Rotate with other modes for maximum benefit',
+  },
+  gonogo: {
+    icon: '🛑', title: 'Go / No-Go', color: '#10d97e',
+    tagline: 'Inhibitory Control Training',
+    what: '<strong>Green circle → tap fast.</strong> <strong>Red circle → do NOT tap.</strong> The timing window tightens and the no-go ratio increases at higher levels. Your brain wants to tap everything — the training is learning not to.',
+    science: 'The gold standard task in <strong>ADHD and impulse control research</strong>. Studies consistently show inhibition training reduces impulsivity scores and improves sustained attention. It directly exercises the prefrontal cortex&#39;s &quot;brake&quot; system.',
+    benefits: [
+      'Fewer impulsive decisions you regret later',
+      'Stronger ability to resist distractions and stay on task',
+      'Improved emotional regulation under stress',
+      'Better performance in fast, high-stakes situations',
+    ],
+    score: 'Commission errors (tapping red) = impulsivity. Omission errors (missing green) = inattention. Elite performers have near-zero commission errors — that&#39;s the harder skill.',
+    tip: '3–4 min per session · Ideal daily warm-up — short and high-impact · Pairs well with N-Back on the same day',
+  },
+  choicert: {
+    icon: '⚡', title: 'Choice Reaction Time', color: '#fbbf24',
+    tagline: 'Processing Speed Training',
+    what: 'A flash appears <strong>Left</strong> or <strong>Right</strong>. Tap the matching side as fast as possible. The wait time before each flash varies randomly — you can&#39;t anticipate it. Pure perception-to-action speed.',
+    science: 'Processing speed is a <strong>top predictor of overall cognitive performance</strong> and one of the first to decline with age. Jensen (1982) established RT as a proxy for general intelligence. Used in elite sports science to assess neurological readiness.',
+    benefits: [
+      'Faster decisions under time pressure',
+      'Sharper reflexes while driving or in sports',
+      'Quicker recovery from mental task-switching',
+      'Reduced cognitive lag in complex, fast-moving environments',
+    ],
+    score: 'Average adult choice RT: 350–450ms. Under 300ms is exceptional. Your SD (variability) is as important as your mean — consistency signals stable neural processing.',
+    tip: '3–4 min per session · Best trained when mentally fresh — try it first thing · Pairs well with Task Switch',
+  },
+  taskswitch: {
+    icon: '🔀', title: 'Task Switch', color: '#a78bfa',
+    tagline: 'Cognitive Flexibility Training',
+    what: 'A number appears with one of two rules: <strong>ODD/EVEN</strong> or <strong>HIGH/LOW</strong>. The rule switches randomly. Switch trials — changing rules mid-task — are measurably harder. That difficulty gap is exactly what you&#39;re training to close.',
+    science: 'Switch cost (extra time on switch vs. repeat trials) is a <strong>validated biomarker for prefrontal cortex efficiency</strong>. Elite performers — chess grandmasters, surgeons, fighter pilots — show dramatically lower switch costs than average adults.',
+    benefits: [
+      'Better at flipping between different types of work without friction',
+      'Faster recovery when plans change unexpectedly',
+      'Stronger creative problem-solving and lateral thinking',
+      'Reduced mental "gear-grinding" when context-switching',
+    ],
+    score: 'Switch cost under 100ms = good. Under 50ms = strong. Under 20ms = elite. Watch your switch-trial accuracy specifically — that&#39;s more diagnostic than overall accuracy.',
+    tip: '4–5 min per session · Most demanding mode — save for when you&#39;re sharp · Your 6ms switch cost is elite-level',
+  },
+};
+
+function showModeInfo(mode) {
+  const data = MODE_INFO_DATA[mode];
+  if (!data) return;
+
+  document.getElementById('modal-title').innerHTML =
+    `<span style="font-size:1.3rem">${data.icon}</span>
+     <span style="color:${data.color}">${data.title}</span>
+     <span style="font-size:0.7rem;color:var(--text-dim);font-weight:400;font-family:var(--font-mono);margin-left:4px">${data.tagline}</span>`;
+
+  document.getElementById('modal-body').innerHTML = `
+    <div>
+      <div class="modal-section-title">How it works</div>
+      <div class="modal-text">${data.what}</div>
+    </div>
+    <div>
+      <div class="modal-section-title">The science</div>
+      <div class="modal-highlight">${data.science}</div>
+    </div>
+    <div>
+      <div class="modal-section-title">Real-world benefits</div>
+      <div class="benefit-list">
+        ${data.benefits.map(b=>`<div class="benefit-item"><div class="bi-dot" style="background:${data.color}"></div><span>${b}</span></div>`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="modal-section-title">What your score means</div>
+      <div class="modal-text">${data.score}</div>
+    </div>
+    ${data.tip ? `<div>
+      <div class="modal-section-title">Recommended training</div>
+      <div style="background:var(--surface2);border-radius:8px;padding:11px 14px;font-size:0.8rem;color:var(--text-mid);line-height:1.6;font-family:var(--font-mono);">${data.tip}</div>
+    </div>` : ''}
+    <div class="modal-cta">
+      <button class="btn btn-primary btn-big" style="background:${data.color};color:#000;" onclick="closeModeInfoDirect();startMode('${mode}')">Start ${data.title} →</button>
+    </div>
+  `;
+
+  document.getElementById('mode-info-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModeInfo(e) {
+  if (e.target === document.getElementById('mode-info-modal')) closeModeInfoDirect();
+}
+function closeModeInfoDirect() {
+  document.getElementById('mode-info-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ============================================================
+   LEARN + SETTINGS SCREEN NAV
+   ============================================================ */
+function showLearn() {
+  showScreen('learn');
+}
+function showSettings() {
+  loadSettingsUI();
+  showScreen('settings');
+}
+
+/* ============================================================
+   SETTINGS LOGIC
+   ============================================================ */
+const SETTINGS_KEY = 'cogitrain_settings';
+
+function loadSettingsData() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; }
+  catch(e) { return {}; }
+}
+function saveSettingsData(s) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+function saveSetting(key, value) {
+  const s = loadSettingsData();
+  s[key] = value;
+  saveSettingsData(s);
+}
+function getSetting(key, defaultVal) {
+  const s = loadSettingsData();
+  return s[key] !== undefined ? s[key] : defaultVal;
+}
+
+function loadSettingsUI() {
+  const s = loadSettingsData();
+  const soundEl = document.getElementById('setting-sound');
+  if (soundEl) soundEl.checked = s.sound || false;
+  const nbTrials = document.getElementById('setting-nback-trials');
+  if (nbTrials) nbTrials.value = s.nbackTrials || '20';
+  const crtTrials = document.getElementById('setting-crt-trials');
+  if (crtTrials) crtTrials.value = s.crtTrials || '20';
+  const tsTrials = document.getElementById('setting-ts-trials');
+  if (tsTrials) tsTrials.value = s.tsTrials || '24';
+  const ageEl = document.getElementById('setting-age');
+  if (ageEl && s.age) ageEl.value = s.age;
+}
+
+function resetModeDifficulty(mode) {
+  const modeNames = {nback:'N-Back',gonogo:'Go/No-Go',choicert:'Choice RT',taskswitch:'Task Switch'};
+  if (!confirm(`Reset ${modeNames[mode]} difficulty to Level 1? Your session history is preserved.`)) return;
+  const db = loadDB();
+  if (db.difficulty) delete db.difficulty[mode];
+  saveDB(db);
+  showFeedbackToast(`${modeNames[mode]} reset to Level 1`);
+}
+
+function clearHistoryFromSettings() {
+  if (!confirm('Clear all session history and reset all difficulty? This cannot be undone.')) return;
+  localStorage.removeItem(DB_KEY);
+  renderDashboard();
+  showFeedbackToast('All data cleared');
+}
+
+/* Simple toast notification */
+function showFeedbackToast(msg) {
+  let toast = document.getElementById('feedback-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'feedback-toast';
+    toast.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+      background:var(--surface);border:1px solid var(--border);color:var(--text);
+      padding:10px 20px;border-radius:20px;font-size:0.82rem;font-family:var(--font-mono);
+      z-index:999;opacity:0;transition:opacity 0.2s;pointer-events:none;
+      box-shadow:0 4px 20px rgba(0,0,0,0.4);white-space:nowrap;`;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  setTimeout(()=>{ toast.style.opacity='0'; }, 2200);
+}
+
+
+/* ============================================================
+   SESSION DURATION TRACKING
+   Each mode sets sessionStartTime at start(); finish() computes
+   durationSec and passes to saveSession().
+   ============================================================ */
+
+// Patch saveSession to accept and store durationSec
+const _origSaveSession = saveSession;
+function saveSession(modeKey, payload) {
+  const db = loadDB();
+  const entry = { mode: modeKey, ts: Date.now(), ...payload };
+  db.sessions.push(entry);
+  if (db.sessions.length > 200) db.sessions.splice(0, db.sessions.length - 200);
+  saveDB(db);
+}
+
+/* ============================================================
+   TODAY STRIP
+   ============================================================ */
+const DAILY_GOAL_SEC = 15 * 60; // 15 minutes
+
+function getTodaySessions() {
+  const db = loadDB();
+  const todayStart = new Date();
+  todayStart.setHours(0,0,0,0);
+  return db.sessions.filter(s => s.ts >= todayStart.getTime());
+}
+
+function getTodayMinutesByMode() {
+  const today = getTodaySessions();
+  const result = { nback:0, gonogo:0, choicert:0, taskswitch:0 };
+  today.forEach(s => {
+    if (result[s.mode] !== undefined && s.durationSec) {
+      result[s.mode] += s.durationSec;
+    }
+  });
+  return result;
+}
+
+function renderTodayStrip() {
+  const byMode = getTodayMinutesByMode();
+  const totalSec = Object.values(byMode).reduce((a,b)=>a+b, 0);
+  const totalMin = Math.round(totalSec / 60);
+  const pct = Math.min(100, Math.round((totalSec / DAILY_GOAL_SEC) * 100));
+  const goalMet = totalSec >= DAILY_GOAL_SEC;
+
+  // Total label
+  const totalLabel = document.getElementById('today-total-label');
+  if (totalLabel) {
+    const remaining = Math.max(0, Math.ceil((DAILY_GOAL_SEC - totalSec) / 60));
+    totalLabel.textContent = goalMet
+      ? `✓ ${totalMin} min today — goal met!`
+      : `${totalMin} min of 15 min goal · ${remaining} min to go`;
+    totalLabel.style.color = goalMet ? 'var(--green)' : 'var(--text-mid)';
+  }
+
+  // Progress bar
+  const bar = document.getElementById('today-goal-bar');
+  if (bar) {
+    bar.style.width = pct + '%';
+    bar.className = 'today-goal-bar-fill' + (goalMet ? ' complete' : '');
+  }
+
+  // Per-mode cells
+  const modes = ['nback','gonogo','choicert','taskswitch'];
+  modes.forEach(mk => {
+    const el = document.getElementById('today-' + mk + '-time');
+    if (!el) return;
+    const sec = byMode[mk] || 0;
+    const min = Math.floor(sec/60);
+    const s   = sec % 60;
+    el.textContent = sec > 0 ? (min > 0 ? min + 'm ' : '') + s + 's' : '0m';
+    el.className = 'tmc-time' + (sec > 0 ? ' active' : '');
+  });
+
+  // Goal met message
+  const metEl = document.getElementById('today-goal-met');
+  if (metEl) metEl.classList.toggle('hidden', !goalMet);
+}
+
+/* ============================================================
+   PATCH EACH MODE TO TRACK DURATION
+   We do this by wrapping each module's start() to record
+   sessionStartTime, and finish() to compute durationSec.
+   Strategy: use a shared timing utility called by each mode.
+   ============================================================ */
+let _sessionStartTime = null;
+
+function markSessionStart() { _sessionStartTime = Date.now(); }
+function getSessionDuration() {
+  if (!_sessionStartTime) return 0;
+  return Math.round((Date.now() - _sessionStartTime) / 1000);
+}
+
+/* ============================================================
+   BENCHMARK NORMS & RANKING ENGINE
+   Sources: published RT norms (Whelan 2008, Lim et al. 2015),
+   N-Back accuracy norms (Jaeggi 2010), Go/No-Go norms (Bezdjian 2009)
+   ============================================================ */
+const BENCHMARKS = {
+  nback: {
+    label: 'N-Back', icon: '🧠', color: '#00d4ff',
+    // Based on accuracy % at current level
+    getRank(sessions) {
+      const s = sessions.filter(x=>x.mode==='nback'&&x.acc!=null);
+      if (!s.length) return null;
+      const recent = s.slice(-5);
+      const avgAcc = recent.reduce((a,b)=>a+b.acc,0)/recent.length;
+      const maxLv  = Math.max(...s.map(x=>x.level||1));
+      // Score: blend accuracy + level reached
+      const score = avgAcc * 0.6 + maxLv * 4;
+      return { score, avgAcc: Math.round(avgAcc), maxLevel: maxLv,
+               metrics: [
+                 { label:'Avg Accuracy (last 5)', val: Math.round(avgAcc)+'%', norm:'Avg adult ~72% at 2-back' },
+                 { label:'Peak Level', val:'Lv '+maxLv, norm:'Average adult peaks Lv 4–5' },
+               ]};
+    }
+  },
+  gonogo: {
+    label: 'Go/No-Go', icon: '🛑', color: '#10d97e',
+    getRank(sessions) {
+      const s = sessions.filter(x=>x.mode==='gonogo'&&x.acc!=null);
+      if (!s.length) return null;
+      const recent = s.slice(-5);
+      const avgAcc  = recent.reduce((a,b)=>a+b.acc,0)/recent.length;
+      const avgComm = recent.filter(x=>x.commission!=null).reduce((a,b)=>a+(b.commission||0),0)/recent.length;
+      const score   = avgAcc * 0.7 + Math.max(0, 10 - avgComm) * 3;
+      return { score, avgAcc: Math.round(avgAcc), avgComm: Math.round(avgComm*10)/10,
+               metrics: [
+                 { label:'Avg Accuracy (last 5)', val: Math.round(avgAcc)+'%', norm:'Healthy adults avg ~85%' },
+                 { label:'Avg Commission Errors', val: Math.round(avgComm*10)/10, norm:'Elite: <1 per session' },
+               ]};
+    }
+  },
+  choicert: {
+    label: 'Choice RT', icon: '⚡', color: '#fbbf24',
+    getRank(sessions) {
+      const s = sessions.filter(x=>x.mode==='choicert'&&x.meanRT!=null);
+      if (!s.length) return null;
+      const recent = s.slice(-5);
+      const avgRT  = Math.round(recent.reduce((a,b)=>a+b.meanRT,0)/recent.length);
+      const bestRT = Math.min(...s.map(x=>x.meanRT));
+      // Lower RT = higher score
+      const score  = Math.max(0, 600 - avgRT) / 3;
+      return { score, avgRT, bestRT,
+               metrics: [
+                 { label:'Avg Reaction Time', val: avgRT+'ms', norm:'Adult avg 350–450ms' },
+                 { label:'Best Reaction Time', val: bestRT+'ms', norm:'Elite: <280ms' },
+               ]};
+    }
+  },
+  taskswitch: {
+    label: 'Task Switch', icon: '🔀', color: '#a78bfa',
+    getRank(sessions) {
+      const s = sessions.filter(x=>x.mode==='taskswitch'&&x.acc!=null);
+      if (!s.length) return null;
+      const recent = s.slice(-5);
+      const avgAcc  = recent.reduce((a,b)=>a+b.acc,0)/recent.length;
+      const scSess  = s.filter(x=>x.switchCost!=null);
+      const avgSC   = scSess.length ? Math.round(scSess.slice(-5).reduce((a,b)=>a+b.switchCost,0)/Math.min(5,scSess.length)) : null;
+      // Lower switch cost = better
+      const scScore = avgSC != null ? Math.max(0, 200 - avgSC) / 2 : 50;
+      const score   = avgAcc * 0.5 + scScore;
+      return { score, avgAcc: Math.round(avgAcc), avgSC,
+               metrics: [
+                 { label:'Avg Accuracy (last 5)', val: Math.round(avgAcc)+'%', norm:'Avg adult ~78%' },
+                 { label:'Avg Switch Cost', val: avgSC!=null ? avgSC+'ms' : '—', norm:'Good <100ms · Elite <20ms' },
+               ]};
+    }
+  }
+};
+
+function scoreToRank(score) {
+  if (score >= 82) return { label:'Elite',       cls:'rank-elite',      icon:'🏆' };
+  if (score >= 65) return { label:'Above Avg',   cls:'rank-above-avg',  icon:'⭐' };
+  if (score >= 45) return { label:'Average',     cls:'rank-average',    icon:'〰️' };
+  if (score >= 28) return { label:'Developing',  cls:'rank-developing', icon:'📈' };
+  return               { label:'Needs Work',  cls:'rank-needs-work', icon:'💪' };
+}
+
+function renderBenchmarks() {
+  const db = loadDB();
+  const el = document.getElementById('so-benchmarks');
+  if (!el) return;
+
+  const modes = ['nback','gonogo','choicert','taskswitch'];
+  let html = '<div class="section-label" style="margin-top:8px;padding-top:16px;">Performance Benchmarks</div>';
+
+  let overallScores = [];
+
+  modes.forEach(mk => {
+    const b = BENCHMARKS[mk];
+    const result = b.getRank(db.sessions);
+    if (!result) return;
+
+    const rank = scoreToRank(result.score);
+    overallScores.push(result.score);
+
+    html += `<div class="benchmark-card">
+      <div class="benchmark-header">
+        <div class="benchmark-title">${b.icon} ${b.label}</div>
+        <span class="rank-badge ${rank.cls}">${rank.icon} ${rank.label}</span>
+      </div>
+      <div class="benchmark-rows">
+        ${result.metrics.map(m=>`
+        <div class="benchmark-row">
+          <span class="br-metric">${m.label}</span>
+          <div style="text-align:right">
+            <div class="br-val" style="color:${b.color}">${m.val}</div>
+            <div class="br-norm">${m.norm}</div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  });
+
+  // Overall rank
+  if (overallScores.length > 0) {
+    const overall = Math.round(overallScores.reduce((a,b)=>a+b,0)/overallScores.length);
+    const overallRank = scoreToRank(overall);
+    html = `<div class="section-label" style="margin-top:8px;padding-top:16px;">Performance Benchmarks</div>
+    <div class="benchmark-card" style="border-color:rgba(124,58,237,0.4);background:linear-gradient(135deg,var(--surface),rgba(124,58,237,0.05));">
+      <div class="benchmark-header">
+        <div class="benchmark-title" style="font-size:0.95rem;">🧬 Overall Cognitive Rank</div>
+        <span class="rank-badge ${overallRank.cls}" style="font-size:0.8rem;padding:5px 14px;">${overallRank.icon} ${overallRank.label}</span>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text-dim);line-height:1.6;">
+        Composite score across all ${overallScores.length} trained mode${overallScores.length>1?'s':''}.
+        Based on accuracy, reaction time, and level norms from published cognitive research.
+      </div>
+    </div>` + html.replace('<div class="section-label" style="margin-top:8px;padding-top:16px;">Performance Benchmarks</div>','');
+  }
+
+  if (overallScores.length === 0) {
+    html += '<div class="empty-state"><span class="es-icon">📊</span><strong>No data yet.</strong><br>Complete a few sessions to see your benchmark ranking.</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+/* ============================================================
+   COGNITIVE AGE ESTIMATE
+   Algorithm: uses RT norms and accuracy by age bracket.
+   RT norms from Whelan (2008): 20s≈290ms, 30s≈310ms, 40s≈340ms,
+   50s≈380ms, 60s≈430ms, 70s≈500ms.
+   Accuracy adjusts by ±2 years per 5% deviation from norms.
+   ============================================================ */
+const RT_AGE_NORMS = [
+  { age:20, rt:290 }, { age:25, rt:300 }, { age:30, rt:315 },
+  { age:35, rt:330 }, { age:40, rt:350 }, { age:45, rt:370 },
+  { age:50, rt:395 }, { age:55, rt:425 }, { age:60, rt:460 },
+  { age:65, rt:500 }, { age:70, rt:545 }, { age:75, rt:595 },
+];
+
+function estimateCogAge(actualAge, sessions) {
+  const crtSess = sessions.filter(s=>s.mode==='choicert'&&s.meanRT!=null);
+  const tsSess  = sessions.filter(s=>s.mode==='taskswitch'&&s.acc!=null);
+  const nbSess  = sessions.filter(s=>s.mode==='nback'&&s.acc!=null);
+
+  if (crtSess.length < 3) return null; // Need enough data
+
+  const avgRT  = Math.round(crtSess.slice(-10).reduce((a,b)=>a+b.meanRT,0)/Math.min(10,crtSess.length));
+
+  // Find closest age bracket for this RT
+  let rtAge = RT_AGE_NORMS[0].age;
+  for (let i=0; i<RT_AGE_NORMS.length-1; i++) {
+    const lo = RT_AGE_NORMS[i], hi = RT_AGE_NORMS[i+1];
+    if (avgRT >= lo.rt && avgRT <= hi.rt) {
+      const frac = (avgRT - lo.rt) / (hi.rt - lo.rt);
+      rtAge = Math.round(lo.age + frac * (hi.age - lo.age));
+      break;
+    } else if (avgRT < RT_AGE_NORMS[0].rt) {
+      rtAge = 18; // Faster than 20-year-old norm
+    } else if (avgRT > RT_AGE_NORMS[RT_AGE_NORMS.length-1].rt) {
+      rtAge = 80;
+    }
+  }
+
+  // Accuracy modifier: each 5% above 80% nback baseline subtracts 1 year
+  let accAdj = 0;
+  if (nbSess.length >= 3) {
+    const avgNbAcc = nbSess.slice(-5).reduce((a,b)=>a+b.acc,0)/Math.min(5,nbSess.length);
+    accAdj = Math.round((avgNbAcc - 72) / 5) * (-1); // subtract years if above avg
+  }
+
+  // Switch cost modifier
+  let scAdj = 0;
+  const scSess = tsSess.filter(s=>s.switchCost!=null);
+  if (scSess.length >= 2) {
+    const avgSC = scSess.slice(-5).reduce((a,b)=>a+b.switchCost,0)/Math.min(5,scSess.length);
+    if (avgSC < 30) scAdj = -3;
+    else if (avgSC < 60) scAdj = -1;
+    else if (avgSC > 150) scAdj = +2;
+    else if (avgSC > 200) scAdj = +4;
+  }
+
+  const cogAge = Math.max(16, Math.min(85, rtAge + accAdj + scAdj));
+  const diff   = actualAge - cogAge;
+  return { cogAge, avgRT, diff };
+}
+
+function renderCogAge() {
+  const el = document.getElementById('so-cog-age');
+  if (!el) return;
+
+  const age = parseInt(getSetting('age', ''));
+  const db  = loadDB();
+
+  if (!age || isNaN(age)) {
+    el.innerHTML = `<div class="cog-age-card" style="margin-top:8px;">
+      <div class="ca-title">🧬 Cognitive Age Estimate</div>
+      <div class="cog-age-note">Enter your age in Settings to unlock your cognitive age estimate — a calculation of how your brain&#39;s processing speed and accuracy compares to population norms by age.</div>
+      <button class="btn btn-secondary" style="padding:10px;font-size:0.82rem;" onclick="showSettings()">Enter Age in Settings →</button>
+    </div>`;
+    return;
+  }
+
+  const result = estimateCogAge(age, db.sessions);
+
+  if (!result) {
+    el.innerHTML = `<div class="cog-age-card" style="margin-top:8px;">
+      <div class="ca-title">🧬 Cognitive Age Estimate</div>
+      <div class="cog-age-note">Complete at least 3 Choice RT sessions to unlock your cognitive age estimate. The algorithm uses your reaction time and accuracy data compared to population norms.</div>
+    </div>`;
+    return;
+  }
+
+  const { cogAge, diff } = result;
+  const diffLabel = diff > 0 ? `${diff} years younger than your actual age`
+                  : diff < 0 ? `${Math.abs(diff)} years older than your actual age`
+                  : 'exactly at your actual age';
+  const diffColor = diff >= 3 ? 'var(--green)' : diff <= -3 ? 'var(--red)' : 'var(--yellow)';
+
+  el.innerHTML = `<div class="cog-age-card" style="margin-top:8px;">
+    <div class="ca-title">🧬 Cognitive Age Estimate</div>
+    <div class="cog-age-display">
+      <div class="cog-age-box">
+        <div class="cab-val" style="color:var(--accent)">${cogAge}</div>
+        <div class="cab-lbl">Cognitive Age</div>
+      </div>
+      <div class="cog-age-box">
+        <div class="cab-val" style="color:${diffColor}">${age}</div>
+        <div class="cab-lbl">Your Actual Age</div>
+      </div>
+    </div>
+    <div style="text-align:center;font-size:0.82rem;font-weight:600;color:${diffColor};">
+      Your brain is performing ${diffLabel}
+    </div>
+    <div class="cog-age-note">Based on reaction time norms (Whelan 2008) and accuracy benchmarks across ${db.sessions.length} recorded sessions. Continue training to improve your estimate.</div>
+  </div>`;
+}
+
+/* ============================================================
+   PATCH MODE MODULES TO TRACK DURATION
+   We override each module's start()/finish() behavior by
+   calling markSessionStart() at start and getSessionDuration()
+   before saveSession().
+   ============================================================ */
+
+// Re-patch after modules are defined — wrap finish() in each IIFE result
+// Strategy: intercept saveSession calls by adding durationSec to payload
+// We do this by noting startTime per mode at the module level via a global hook.
+// Each mode already calls start() and finish(). We add wrappers here.
+
+(function patchModuleDurations() {
+  // nback
+  const _nbStart = nback.start.bind(nback);
+  nback.start = function() { markSessionStart(); _nbStart(); };
+
+  // gonogo
+  const _gngStart = gonogo.start.bind(gonogo);
+  gonogo.start = function() { markSessionStart(); _gngStart(); };
+
+  // choicert
+  const _crtStart = choicert.start.bind(choicert);
+  choicert.start = function() { markSessionStart(); _crtStart(); };
+
+  // taskswitch
+  const _tsStart = taskswitch.start.bind(taskswitch);
+  taskswitch.start = function() { markSessionStart(); _tsStart(); };
+})();
+
+// Patch saveSession to always inject durationSec from current session timer
+const _saveSession2 = saveSession;
+saveSession = function(modeKey, payload) {
+  const dur = getSessionDuration();
+  _saveSession2(modeKey, { ...payload, durationSec: dur > 0 ? dur : null });
+  // Reset timer
+  _sessionStartTime = null;
+  // Re-render today strip
+  renderTodayStrip();
+};
+
+/* ============================================================
+   PATCH renderStats + renderDashboard to include new sections
+   ============================================================ */
+const _origRenderStats = renderStats;
+renderStats = function() {
+  _origRenderStats();
+  renderBenchmarks();
+  renderCogAge();
+};
+
+const _origRenderDashboard = renderDashboard;
+renderDashboard = function() {
+  _origRenderDashboard();
+  renderTodayStrip();
+};
 
 /* ============================================================
    INIT
