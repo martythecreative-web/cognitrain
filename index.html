@@ -743,16 +743,10 @@ html, body {
 .stats-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
 .stats-panel { display: none; flex-direction: column; gap: 16px; }
-.stats-panel.active { display: flex; }
+.stats-panel.active { display: flex; position: relative; min-height: 200px; }
 
-/* Pro lock wrap — fills panel, overlay centers within it */
-.pro-lock-wrap {
-  position: relative;
-  border-radius: var(--radius);
-  overflow: hidden;
-  min-height: 300px;
-  flex: 1;
-}
+/* Pro lock wrap — transparent passthrough, children render normally */
+.pro-lock-wrap { display: contents; }
 
 /* Calendar heatmap */
 .cal-wrap {
@@ -895,7 +889,9 @@ html, body {
 
 /* Mini sparkline per mode */
 .mode-spark-wrap {
-  margin-top: 4px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
 }
 .mode-spark-label {
   font-size: 0.6rem;
@@ -1533,16 +1529,19 @@ html, body {
    PAYWALL / PRO OVERLAY
    ============================================================ */
 .pro-lock-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(10,12,16,0.85);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 120px;  /* clears top-nav (~57px) + tab bar (~50px) + small gap */
+  bottom: 0;
+  background: rgba(10,12,16,0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  z-index: 50;
-  border-radius: var(--radius);
+  padding-top: 40px;
+  z-index: 200;
 }
 .pro-lock-card {
   background: var(--surface);
@@ -2663,15 +2662,20 @@ function applyPaywallState() {
     if (lock) lock.style.display = isPro ? 'none' : 'inline';
   });
 
-  // Calendar, By Mode, Records overlays
-  ['calendar-lock-wrap','modes-lock-wrap','records-lock-wrap'].forEach((wrapId, i) => {
-    const wrap = document.getElementById(wrapId);
-    if (!wrap) return;
-    const existing = wrap.querySelector('.pro-lock-overlay');
+  // Calendar, By Mode, Records — inject overlay at panel level so it covers full panel
+  const panelMap = [
+    { panelId: 'stats-panel-calendar', name: 'Calendar Heatmap' },
+    { panelId: 'stats-panel-modes',    name: 'Deep Mode Analytics' },
+    { panelId: 'stats-panel-records',  name: 'Personal Records' },
+  ];
+  panelMap.forEach(({ panelId, name }) => {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    // Remove any existing overlay
+    const existing = panel.querySelector('.pro-lock-overlay');
     if (existing) existing.remove();
     if (!isPro) {
-      const names = ['Calendar Heatmap', 'Deep Mode Analytics', 'Personal Records'];
-      wrap.insertAdjacentHTML('beforeend', proLockCardHTML(names[i]));
+      panel.insertAdjacentHTML('beforeend', proLockCardHTML(name));
     }
   });
 }
@@ -4083,7 +4087,7 @@ function renderModes() {
         ${avgCE!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${avgCE}ms</div><div class="msl">Avg Congruency Effect</div></div>`:''}
       </div>
       ${withAcc.length>1?`<div class="mode-spark-wrap"><div class="mode-spark-label">Accuracy trend</div><svg id="${accSparkId}" viewBox="0 0 400 36" preserveAspectRatio="none"></svg></div>`:''}
-      ${withRT.length>1?`<div class="mode-spark-wrap" style="margin-top:8px;"><div class="mode-spark-label">Reaction time trend</div><svg id="${rtSparkId}" viewBox="0 0 400 36" preserveAspectRatio="none"></svg></div>`:''}
+      ${withRT.length>1?`<div class="mode-spark-wrap"><div class="mode-spark-label">Reaction time trend</div><svg id="${rtSparkId}" viewBox="0 0 400 36" preserveAspectRatio="none"></svg></div>`:''}
     </div>`;
   }).join('');
 }
