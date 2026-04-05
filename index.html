@@ -167,7 +167,10 @@ html, body {
 }
 .mode-card:hover { border-color: var(--card-accent, var(--accent)); transform: translateY(-2px); }
 .mode-card:hover::before { opacity: 1; }
-.mode-card:active { transform: translateY(0); }
+.mode-card:active,
+.mode-card.touch-active { transform: translateY(0); border-color: var(--card-accent, var(--accent)); background: var(--surface2); }
+.mode-card:active::before,
+.mode-card.touch-active::before { opacity: 1; }
 
 .mode-card .icon {
   font-size: 1.8rem;
@@ -1645,15 +1648,36 @@ html, body {
     <div class="game-body">
       <!-- Instruction / idle state -->
       <div id="nb-intro" class="text-center" style="width:100%">
-        <div class="stimulus-box" style="font-size:1.1rem; padding:20px; min-height:auto; text-align:left; line-height:1.7;">
-          <span>
-            A letter appears every 2 seconds.<br>
-            Press <strong>MATCH</strong> if the current letter<br>
-            matches the one <strong>N steps back</strong>.<br><br>
-            <span style="color:var(--text-dim); font-size:0.85rem;">
-              N increases as you improve.
-            </span>
-          </span>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;">
+          <div style="font-family:var(--font-ui);font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:14px;">
+            A letter flashes every 2 seconds. Decide if it matches the letter <strong style="color:var(--text);">N steps back</strong> in the sequence.
+          </div>
+
+          <!-- Visual diagram -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+              <div style="width:44px;height:44px;border-radius:8px;background:rgba(124,58,237,0.15);border:2px dashed var(--accent2);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:1.1rem;color:var(--accent2);">B</div>
+              <div style="font-size:0.6rem;color:var(--accent2);font-family:var(--font-ui);font-weight:600;">N-BACK</div>
+            </div>
+            <div style="color:var(--text-dim);font-size:0.75rem;">···</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+              <div style="width:44px;height:44px;border-radius:8px;background:rgba(0,212,255,0.12);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:1.1rem;color:var(--accent);">B</div>
+              <div style="font-size:0.6rem;color:var(--accent);font-family:var(--font-ui);font-weight:600;">NOW</div>
+            </div>
+            <div style="font-size:0.8rem;color:var(--green);font-weight:600;margin-left:4px;">→ MATCH ✓</div>
+          </div>
+
+          <div style="font-family:var(--font-ui);font-size:0.8rem;color:var(--text-dim);line-height:1.65;text-align:left;border-top:1px solid var(--border);padding-top:12px;">
+            <div style="margin-bottom:6px;">
+              <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(0,212,255,0.2);border:1.5px solid var(--accent);vertical-align:middle;margin-right:6px;"></span>
+              <strong style="color:var(--text);">Blue tile</strong> = the letter showing <em>right now</em>
+            </div>
+            <div style="margin-bottom:6px;">
+              <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(124,58,237,0.15);border:1.5px dashed var(--accent2);vertical-align:middle;margin-right:6px;"></span>
+              <strong style="color:var(--text);">Purple tile</strong> = the letter N steps back (your target)
+            </div>
+            <div>Tiles are <strong style="color:var(--text);">visual only</strong> — respond with <strong style="color:var(--green);">Match</strong> or <strong style="color:var(--red);">No Match</strong> buttons only.</div>
+          </div>
         </div>
         <div class="action-row" style="margin-top:16px;">
           <button class="btn btn-primary btn-big" onclick="nback.start()">Start Session</button>
@@ -2377,9 +2401,30 @@ function showMenu() {
   showScreen('menu');
 }
 function startMode(mode) {
-  showScreen(mode === 'nback' ? 'nback' :
-             mode === 'gonogo' ? 'gonogo' :
-             mode === 'choicert' ? 'choicert' : 'taskswitch');
+  // Map mode key to screen id
+  const screenId = mode === 'nback' ? 'nback' :
+                   mode === 'gonogo' ? 'gonogo' :
+                   mode === 'choicert' ? 'choicert' : 'taskswitch';
+  showScreen(screenId);
+
+  // Reset intro/game div visibility so replays start clean
+  const introMap = {
+    nback:      { intro: 'nb-intro',  game: 'nb-game'  },
+    gonogo:     { intro: 'gng-intro', game: 'gng-game' },
+    choicert:   { intro: 'crt-intro', game: 'crt-game' },
+    taskswitch: { intro: 'ts-intro',  game: 'ts-game'  },
+  };
+  const ids = introMap[mode];
+  if (ids) {
+    const introEl = document.getElementById(ids.intro);
+    const gameEl  = document.getElementById(ids.game);
+    if (introEl) { introEl.classList.remove('hidden'); introEl.style.display = ''; }
+    if (gameEl)  { gameEl.classList.add('hidden');    gameEl.style.display  = 'none'; }
+  }
+
+  // Start the mode
+  const modeObj = { nback, gonogo, choicert, taskswitch }[mode];
+  if (modeObj) modeObj.start();
 }
 
 /* ============================================================
@@ -3297,21 +3342,32 @@ function renderOverview() {
 function drawSparklineInto(svgId, values, color, minVal, maxVal, invertColor) {
   const svg = document.getElementById(svgId);
   if (!svg || values.length < 2) { if(svg) svg.innerHTML=''; return; }
-  const W=400,H=50,pad=4;
+  const W=400,H=50,pad=4,labelW=32; // labelW = space reserved for axis labels
   const mn = minVal != null ? minVal : Math.max(0, Math.min(...values)-5);
   const mx = maxVal != null ? maxVal : Math.min(9999, Math.max(...values)+5);
-  const xStep = (W-pad*2)/(values.length-1);
+  const chartLeft = labelW;
+  const chartW = W - chartLeft - pad;
+  const xStep = chartW/(values.length-1);
   const yScale = v => H-pad-((v-mn)/(mx-mn||1))*(H-pad*2);
-  const pts = values.map((v,i)=>`${pad+i*xStep},${yScale(v)}`).join(' ');
-  const areaPath=`M ${pad},${yScale(values[0])} L ${pts.split(' ').slice(1).join(' L ')} L ${pad+(values.length-1)*xStep},${H} L ${pad},${H} Z`;
+  const pts = values.map((v,i)=>`${chartLeft+i*xStep},${yScale(v)}`).join(' ');
+  const areaPath=`M ${chartLeft},${yScale(values[0])} L ${pts.split(' ').slice(1).join(' L ')} L ${chartLeft+(values.length-1)*xStep},${H} L ${chartLeft},${H} Z`;
   const gradId = svgId+'_grad';
+
+  // Format label: if value looks like ms (>20) show as-is, if ≤100 assume %
+  const fmtLabel = v => {
+    if (maxVal === 100 || (mn >= 0 && mx <= 100)) return Math.round(v) + '%';
+    return Math.round(v) + '';
+  };
+
   svg.innerHTML=`<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0%" stop-color="${color}" stop-opacity="0.25"/>
     <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
   </linearGradient></defs>
   <path d="${areaPath}" fill="url(#${gradId})"/>
   <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-  ${values.map((v,i)=>`<circle cx="${pad+i*xStep}" cy="${yScale(v)}" r="2.5" fill="${color}"/>`).join('')}`;
+  ${values.map((v,i)=>`<circle cx="${chartLeft+i*xStep}" cy="${yScale(v)}" r="2.5" fill="${color}"/>`).join('')}
+  <text x="0" y="${yScale(mx)+4}" font-size="8" fill="var(--text-dim)" font-family="monospace" dominant-baseline="middle">${fmtLabel(mx)}</text>
+  <text x="0" y="${yScale(mn)-2}" font-size="8" fill="var(--text-dim)" font-family="monospace" dominant-baseline="middle">${fmtLabel(mn)}</text>`;
 }
 
 /* ---- CALENDAR ---- */
@@ -4154,6 +4210,24 @@ renderDashboard = function() {
   _origRenderDashboard();
   renderTodayStrip();
 };
+
+/* ============================================================
+   MOBILE TOUCH FEEDBACK — mode cards
+   iOS suppresses :active without a touchstart listener present.
+   Adding empty touchstart enables :active AND we add .touch-active
+   class manually for full cross-browser coverage.
+   ============================================================ */
+document.querySelectorAll('.mode-card').forEach(card => {
+  card.addEventListener('touchstart', () => {
+    card.classList.add('touch-active');
+  }, { passive: true });
+  card.addEventListener('touchend', () => {
+    setTimeout(() => card.classList.remove('touch-active'), 150);
+  }, { passive: true });
+  card.addEventListener('touchcancel', () => {
+    card.classList.remove('touch-active');
+  }, { passive: true });
+});
 
 /* ============================================================
    INIT
