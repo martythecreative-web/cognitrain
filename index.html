@@ -204,6 +204,7 @@ html, body {
 .mode-card[data-mode="gonogo"]   { --card-accent: #10d97e; }
 .mode-card[data-mode="choicert"] { --card-accent: #fbbf24; }
 .mode-card[data-mode="taskswitch"]{ --card-accent: #7c3aed; }
+.mode-card[data-mode="stroop"]   { --card-accent: #f97316; }
 
 /* ============================================================
    DASHBOARD SECTION (on menu)
@@ -743,6 +744,15 @@ html, body {
 
 .stats-panel { display: none; flex-direction: column; gap: 16px; }
 .stats-panel.active { display: flex; }
+
+/* Pro lock wrap — fills panel, overlay centers within it */
+.pro-lock-wrap {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  min-height: 300px;
+  flex: 1;
+}
 
 /* Calendar heatmap */
 .cal-wrap {
@@ -1356,7 +1366,7 @@ html, body {
 .today-goal-bar-fill.complete { background: var(--accent); }
 .today-mode-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
 }
 .today-mode-cell {
@@ -1519,6 +1529,78 @@ html, body {
 }
 .cog-age-input-row button:hover { filter: brightness(1.1); }
 
+/* ============================================================
+   PAYWALL / PRO OVERLAY
+   ============================================================ */
+.pro-lock-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10,12,16,0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  border-radius: var(--radius);
+}
+.pro-lock-card {
+  background: var(--surface);
+  border: 1px solid rgba(249,115,22,0.4);
+  border-radius: 16px;
+  padding: 22px 20px;
+  max-width: 280px;
+  width: 90%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.pro-lock-icon { font-size: 2rem; line-height: 1; }
+.pro-lock-title { font-size: 1rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+.pro-lock-sub { font-size: 0.78rem; color: var(--text-dim); line-height: 1.6; }
+.pro-lock-perks { display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.pro-lock-perk { font-size: 0.78rem; color: var(--text-mid); display: flex; align-items: center; gap: 8px; }
+.pro-lock-perk::before { content: '✓'; color: #f97316; font-weight: 700; flex-shrink: 0; }
+.pro-upgrade-btn {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s;
+  width: 100%;
+}
+.pro-upgrade-btn:hover { filter: brightness(1.1); }
+.pro-upgrade-btn:active { filter: brightness(0.9); transform: scale(0.98); }
+.pro-price-tag { font-size: 0.7rem; color: var(--text-dim); font-family: var(--font-mono); }
+.stats-tab .tab-lock { font-size: 0.6rem; margin-left: 4px; opacity: 0.6; }
+.dev-badge {
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  background: rgba(249,115,22,0.15);
+  color: #f97316;
+  border: 1px solid rgba(249,115,22,0.4);
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.08em;
+}
+.history-pro-teaser {
+  text-align: center;
+  padding: 20px 16px;
+  background: var(--surface);
+  border: 1px solid rgba(249,115,22,0.3);
+  border-radius: var(--radius);
+  margin-top: 8px;
+}
+.history-pro-teaser p { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 12px; line-height: 1.5; }
+
 </style>
 </head>
 <body>
@@ -1529,7 +1611,7 @@ html, body {
        ============================================================ -->
   <div id="screen-menu" class="screen active">
     <nav class="top-nav">
-      <div class="logo">COGI<span>TRAIN</span></div>
+      <div class="logo">COGI<span>TRAIN</span><span id="dev-badge-nav" class="dev-badge" style="display:none;">DEV</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
         <button class="nav-btn" onclick="showStats()">📊 Stats</button>
         <button class="nav-btn" onclick="showLearn()">📖 Learn</button>
@@ -1579,6 +1661,15 @@ html, body {
         </div>
         <button class="mode-info-btn" onclick="event.stopPropagation();showModeInfo('taskswitch')">ⓘ</button>
       </div>
+      <div class="mode-card-wrap" style="position:relative;">
+        <div class="mode-card" data-mode="stroop" onclick="startMode('stroop')">
+          <span class="icon">🎨</span>
+          <h3>Stroop</h3>
+          <p>A color word appears in a mismatched ink color. Name the ink, ignore the word. Harder than it sounds.</p>
+          <span class="badge">Cognitive Control</span>
+        </div>
+        <button class="mode-info-btn" onclick="event.stopPropagation();showModeInfo('stroop')">ⓘ</button>
+      </div>
     </div>
 
     <!-- Today strip -->
@@ -1610,6 +1701,11 @@ html, body {
           <span class="tmc-icon">🔀</span>
           <div class="tmc-time" id="today-taskswitch-time">0m</div>
           <div class="tmc-label">Task Switch</div>
+        </div>
+        <div class="today-mode-cell" id="today-stroop">
+          <span class="tmc-icon">🎨</span>
+          <div class="tmc-time" id="today-stroop-time">0m</div>
+          <div class="tmc-label">Stroop</div>
         </div>
       </div>
       <div class="today-goal-met hidden" id="today-goal-met">🎯 Daily goal reached! Great session.</div>
@@ -1879,6 +1975,80 @@ html, body {
   </div>
 
   <!-- ============================================================
+       SCREEN: STROOP
+       ============================================================ -->
+  <div id="screen-stroop" class="screen">
+    <div class="game-header">
+      <span class="game-title">🎨 Stroop — Cognitive Control</span>
+      <span class="level-badge" id="stroop-level-badge" style="color:#f97316;background:rgba(249,115,22,0.1);border-color:rgba(249,115,22,0.3);">Level 1</span>
+    </div>
+    <div class="game-body">
+      <!-- Intro -->
+      <div id="stroop-intro" style="width:100%;text-align:center;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;">
+          <div style="font-family:var(--font-ui);font-size:0.88rem;color:var(--text-mid);line-height:1.7;margin-bottom:14px;">
+            A color word appears in a colored ink. Tap the <strong style="color:#f97316;">ink color</strong> — not the word itself.
+          </div>
+          <!-- Demo -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
+            <div style="text-align:center;">
+              <div style="font-size:1.8rem;font-weight:700;font-family:var(--font-mono);color:#10d97e;padding:10px 16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">RED</div>
+              <div style="font-size:0.65rem;color:var(--text-dim);margin-top:6px;font-family:var(--font-ui);">Word says RED<br>Ink is GREEN</div>
+            </div>
+            <div style="font-size:1.2rem;color:#f97316;font-weight:700;">→</div>
+            <div style="text-align:center;">
+              <div style="background:rgba(16,217,126,0.15);border:2px solid #10d97e;border-radius:8px;padding:8px 16px;font-size:0.85rem;font-weight:700;color:#10d97e;">GREEN ✓</div>
+              <div style="font-size:0.65rem;color:var(--text-dim);margin-top:6px;font-family:var(--font-ui);">Tap the ink color</div>
+            </div>
+          </div>
+          <div style="font-family:var(--font-ui);font-size:0.78rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:12px;line-height:1.65;text-align:left;">
+            Your brain wants to read the word — the training is overriding that reflex and responding to the ink color instead.
+          </div>
+        </div>
+        <div class="action-row" style="margin-top:16px;">
+          <button class="btn btn-big" style="background:#f97316;color:#000;font-weight:700;" onclick="stroop.start()">Start Session</button>
+        </div>
+        <button class="btn btn-secondary" style="margin-top:10px;width:100%;padding:12px;" onclick="showMenu()">← Back</button>
+      </div>
+
+      <!-- Active game -->
+      <div id="stroop-game" class="hidden" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:16px;">
+        <div class="trial-meta">
+          <span id="stroop-trial-info">Trial 1 / 20</span>
+          <span id="stroop-acc-info">Acc: —</span>
+        </div>
+        <div class="acc-bar-wrap"><div class="acc-bar-fill" id="stroop-acc-bar" style="width:0%;background:#f97316;"></div></div>
+
+        <!-- Congruency indicator -->
+        <div id="stroop-congruency-badge" style="font-size:0.7rem;font-family:var(--font-mono);padding:3px 12px;border-radius:4px;background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);color:#f97316;"></div>
+
+        <!-- The word stimulus -->
+        <div id="stroop-stimulus" style="
+          width:100%;min-height:140px;
+          background:var(--surface);border:2px solid rgba(249,115,22,0.3);
+          border-radius:var(--radius);display:flex;align-items:center;justify-content:center;
+          font-size:clamp(2.5rem,12vw,4.5rem);font-family:var(--font-mono);font-weight:700;
+          letter-spacing:0.05em;user-select:none;-webkit-user-select:none;
+          transition:all 0.1s;
+        ">—</div>
+
+        <!-- Timer ring -->
+        <div class="timer-ring">
+          <svg viewBox="0 0 90 90"><circle class="track" cx="45" cy="45" r="40"/><circle class="fill" id="stroop-ring" cx="45" cy="45" r="40" style="stroke:#f97316;"/></svg>
+          <div class="ring-time" id="stroop-timer-txt">3.0</div>
+        </div>
+
+        <div class="feedback-pill" id="stroop-feedback"></div>
+
+        <!-- 4 color response buttons -->
+        <div class="option-grid cols-2" id="stroop-options" style="gap:10px;width:100%;"></div>
+
+        <button class="btn btn-danger" style="width:100%;padding:12px;font-size:0.85rem;" onclick="stroop.abort()">End Session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
        SCREEN: RESULTS
        ============================================================ -->
   <div id="screen-results" class="screen">
@@ -1893,6 +2063,7 @@ html, body {
       </div>
       <div class="results-stats" id="res-stats"></div>
       <div class="staircase-note" id="res-note"></div>
+      <div id="res-pro-teaser"></div>
       <div class="action-row mt-auto">
         <button class="btn btn-primary" id="res-replay-btn" onclick="">Play Again</button>
         <button class="btn btn-secondary" onclick="showMenu()">Menu</button>
@@ -1913,9 +2084,9 @@ html, body {
       <!-- Tab bar -->
       <div class="stats-tabs" style="margin-top:16px;">
         <button class="stats-tab active" onclick="switchStatsTab('overview')">Overview</button>
-        <button class="stats-tab" onclick="switchStatsTab('calendar')">Calendar</button>
-        <button class="stats-tab" onclick="switchStatsTab('modes')">By Mode</button>
-        <button class="stats-tab" onclick="switchStatsTab('records')">Records</button>
+        <button class="stats-tab" id="tab-calendar" onclick="switchStatsTab('calendar')">Calendar<span class="tab-lock" id="lock-calendar">🔒</span></button>
+        <button class="stats-tab" id="tab-modes" onclick="switchStatsTab('modes')">By Mode<span class="tab-lock" id="lock-modes">🔒</span></button>
+        <button class="stats-tab" id="tab-records" onclick="switchStatsTab('records')">Records<span class="tab-lock" id="lock-records">🔒</span></button>
         <button class="stats-tab" onclick="switchStatsTab('history')">History</button>
       </div>
 
@@ -1942,42 +2113,48 @@ html, body {
 
       <!-- CALENDAR PANEL -->
       <div id="stats-panel-calendar" class="stats-panel">
-        <div class="cal-wrap">
-          <div class="cal-header">
-            <div class="cal-title" id="cal-month-title">April 2026</div>
-            <div class="cal-nav">
-              <button onclick="calNav(-1)">◀</button>
-              <button onclick="calNav(1)">▶</button>
+        <div class="pro-lock-wrap" id="calendar-lock-wrap">
+          <div class="cal-wrap">
+            <div class="cal-header">
+              <div class="cal-title" id="cal-month-title">April 2026</div>
+              <div class="cal-nav">
+                <button onclick="calNav(-1)">◀</button>
+                <button onclick="calNav(1)">▶</button>
+              </div>
+            </div>
+            <div class="cal-dow">
+              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+            </div>
+            <div class="cal-grid" id="cal-grid"></div>
+            <div class="cal-legend">
+              <span>Less</span>
+              <div class="cal-legend-dot" style="background:var(--surface2); border:1px solid var(--border);"></div>
+              <div class="cal-legend-dot" style="background:rgba(0,212,255,0.15);"></div>
+              <div class="cal-legend-dot" style="background:rgba(0,212,255,0.30);"></div>
+              <div class="cal-legend-dot" style="background:rgba(0,212,255,0.50);"></div>
+              <span>More</span>
             </div>
           </div>
-          <div class="cal-dow">
-            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          <div id="cal-day-detail" class="hidden">
+            <div class="section-label" id="cal-detail-label">Sessions on this day</div>
+            <div class="full-history" id="cal-detail-list"></div>
           </div>
-          <div class="cal-grid" id="cal-grid"></div>
-          <div class="cal-legend">
-            <span>Less</span>
-            <div class="cal-legend-dot" style="background:var(--surface2); border:1px solid var(--border);"></div>
-            <div class="cal-legend-dot" style="background:rgba(0,212,255,0.15);"></div>
-            <div class="cal-legend-dot" style="background:rgba(0,212,255,0.30);"></div>
-            <div class="cal-legend-dot" style="background:rgba(0,212,255,0.50);"></div>
-            <span>More</span>
-          </div>
-        </div>
-        <div id="cal-day-detail" class="hidden">
-          <div class="section-label" id="cal-detail-label">Sessions on this day</div>
-          <div class="full-history" id="cal-detail-list"></div>
         </div>
       </div>
 
       <!-- BY MODE PANEL -->
       <div id="stats-panel-modes" class="stats-panel">
-        <div id="modes-content"></div>
+        <div class="pro-lock-wrap" id="modes-lock-wrap">
+          <div id="modes-content"></div>
+        </div>
       </div>
 
       <!-- RECORDS PANEL -->
       <div id="stats-panel-records" class="stats-panel">
-        <div class="section-label">Personal Records</div>
-        <div class="pr-list" id="records-list"></div>
+        <div class="pro-lock-wrap" id="records-lock-wrap">
+          <div class="section-label">Personal Records</div>
+          <div class="pr-list" id="records-list"></div>
+        </div>
       </div>
 
       <!-- HISTORY PANEL -->
@@ -1988,6 +2165,7 @@ html, body {
           <button class="filter-btn" onclick="filterHistory('gonogo')" data-filter="gonogo">Go/No-Go</button>
           <button class="filter-btn" onclick="filterHistory('choicert')" data-filter="choicert">Choice RT</button>
           <button class="filter-btn" onclick="filterHistory('taskswitch')" data-filter="taskswitch">Task Switch</button>
+          <button class="filter-btn" onclick="filterHistory('stroop')" data-filter="stroop">Stroop</button>
         </div>
         <div class="full-history" id="full-history-list"></div>
       </div>
@@ -2136,14 +2314,42 @@ html, body {
         </div>
       </div>
 
+      <!-- Stroop -->
+      <div class="learn-mode-card" style="--card-color:#f97316;">
+        <div class="learn-mode-header">
+          <span class="lmh-icon">🎨</span>
+          <span class="lmh-title">Stroop</span>
+          <span class="lmh-badge" style="background:rgba(249,115,22,0.12);color:#f97316;border:1px solid rgba(249,115,22,0.3)">Cognitive Control</span>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What it is</div>
+          <p>A color word (like <strong>RED</strong>) appears in a mismatched ink color (like green). Your job is to tap the <strong>ink color</strong> — not the word. Congruent trials (word matches ink) are easy. Incongruent trials (mismatch) force your brain to override a deeply automatic reading response.</p>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What it trains</div>
+          <p><strong>Cognitive control and interference suppression</strong> — your brain's ability to override a dominant automatic response in favor of a less automatic one. This is the same mental muscle used when you resist checking your phone mid-task, stay focused while distracted, or hold back a reaction you know is wrong.</p>
+        </div>
+        <div class="learn-science-bar">
+          <strong>Research spotlight:</strong> The Stroop effect has been replicated thousands of times since J. Ridley Stroop&#39;s original 1935 study. It&#39;s used clinically to assess frontal lobe function, in sports psychology for attentional control training, and in aging research as an early marker of cognitive decline. Reducing your congruency effect (RT gap between easy and hard trials) is a direct measure of improving executive control.
+        </div>
+        <div class="learn-block" style="margin-top:14px;">
+          <div class="learn-label">Real-world benefits</div>
+          <p>Stronger focus in distracting environments · Faster resolution of conflicting information · Better control over impulsive reactions · Improved performance on any task requiring selective attention</p>
+        </div>
+        <div class="learn-block">
+          <div class="learn-label">What your score means</div>
+          <p>Your <strong>congruency effect</strong> (reaction time on mismatched trials minus matched trials) is the key metric. <strong>Under 100ms</strong> is good. <strong>Under 50ms</strong> is strong. <strong>Under 30ms</strong> is elite. Overall accuracy on incongruent trials specifically — not just total accuracy — is what to watch as you improve.</p>
+        </div>
+      </div>
+
       <!-- The bigger picture -->
       <div class="learn-mode-card" style="--card-color:var(--accent2);margin-bottom:0;">
         <div class="learn-mode-header">
           <span class="lmh-icon">🔬</span>
-          <span class="lmh-title">Why train all four?</span>
+          <span class="lmh-title">Why train all five?</span>
         </div>
         <div class="learn-block">
-          <p>Working memory, inhibitory control, processing speed, and cognitive flexibility are the <strong>four pillars of executive function</strong> — the brain systems housed in the prefrontal cortex that govern how you think, decide, and perform under pressure.</p>
+          <p>Working memory, inhibitory control, processing speed, cognitive flexibility, and cognitive control are the <strong>five pillars of executive function</strong> — the brain systems housed in the prefrontal cortex that govern how you think, decide, and perform under pressure.</p>
         </div>
         <div class="learn-block">
           <p>Training them together produces transfer effects — improvements that show up in daily life, not just in the training tasks. Athletes call this <strong>cross-training.</strong> Neuroscientists call it <strong>near and far transfer.</strong> You'll call it noticing you're sharper.</p>
@@ -2186,7 +2392,7 @@ html, body {
 
         <div class="learn-block">
           <div class="learn-label">A realistic daily session</div>
-          <p>Pick <strong>2–3 modes per day</strong> and rotate. You don&#39;t need to play all four every session. A good rotation: N-Back + Go/No-Go one day, Choice RT + Task Switch the next. Your brain benefits more from varied stimulation than grinding the same mode repeatedly.</p>
+          <p>Pick <strong>2–3 modes per day</strong> and rotate. You don&#39;t need to play all five every session. A good rotation: N-Back + Go/No-Go one day, Choice RT + Task Switch the next, Stroop any day as a warm-up. Your brain benefits more from varied stimulation than grinding the same mode repeatedly.</p>
         </div>
 
         <div class="learn-block">
@@ -2207,6 +2413,10 @@ html, body {
             <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.82rem;padding:8px 12px;background:var(--surface2);border-radius:7px;">
               <span>🔀 Task Switch (24 trials)</span>
               <span style="font-family:var(--font-mono);color:#a78bfa;font-weight:600;">~4–5 min</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.82rem;padding:8px 12px;background:var(--surface2);border-radius:7px;">
+              <span>🎨 Stroop (20 trials)</span>
+              <span style="font-family:var(--font-mono);color:#f97316;font-weight:600;">~3–4 min</span>
             </div>
           </div>
         </div>
@@ -2297,6 +2507,7 @@ html, body {
         <button class="settings-danger-btn" onclick="resetModeDifficulty('gonogo')">🛑 Reset Go/No-Go to Level 1</button>
         <button class="settings-danger-btn" onclick="resetModeDifficulty('choicert')">⚡ Reset Choice RT to Level 1</button>
         <button class="settings-danger-btn" onclick="resetModeDifficulty('taskswitch')">🔀 Reset Task Switch to Level 1</button>
+        <button class="settings-danger-btn" onclick="resetModeDifficulty('stroop')">🎨 Reset Stroop to Level 1</button>
       </div>
 
       <div class="settings-section">
@@ -2327,6 +2538,25 @@ html, body {
           <div class="ab-sub">Science-backed cognitive training targeting working memory, inhibitory control, processing speed, and cognitive flexibility. Built on neuropsychological paradigms used in research and clinical settings worldwide.</div>
           <div class="ab-sub" style="margin-top:4px;">Adaptive difficulty automatically adjusts to keep you in the optimal challenge zone — hard enough to grow, achievable enough to stay motivated.</div>
           <div class="ab-version">Version 1.0.0 · Web Preview · Android app coming soon</div>
+          <div class="ab-version" id="settings-dev-status" style="margin-top:6px;"></div>
+          <div class="ab-version" id="dev-version-tap" onclick="devTap()" style="cursor:pointer;user-select:none;padding:4px 0;">Version 1.0.0 · Web Preview · Android app coming soon</div>
+        </div>
+
+        <!-- Developer toggle panel — revealed by tapping version 7x -->
+        <div id="dev-toggle-panel" style="display:none;margin-top:12px;">
+          <div style="background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.3);border-radius:10px;padding:14px 16px;">
+            <div style="font-size:0.65rem;font-family:var(--font-mono);color:#f97316;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;">🛠️ Developer Panel</div>
+            <button id="dev-toggle-btn" onclick="toggleDevMode()"
+              style="width:100%;padding:12px;border-radius:8px;border:1px solid rgba(249,115,22,0.5);
+              background:rgba(249,115,22,0.08);color:#f97316;font-family:var(--font-ui);
+              font-size:0.85rem;font-weight:600;cursor:pointer;text-align:left;transition:all 0.15s;">
+              🟠 DEV MODE: ON (Pro unlocked)
+            </button>
+            <div style="font-size:0.68rem;color:var(--text-dim);margin-top:8px;line-height:1.5;">
+              Toggles between full Pro access and free tier. Persists across refreshes.
+              Set to OFF to test the paywall experience.
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2336,6 +2566,116 @@ html, body {
 </div><!-- #app -->
 
 <script>
+/* ============================================================
+   DEV MODE & PRO FLAG
+   DEV_MODE drives isPro. Toggle via the secret button in Settings.
+   Persisted to localStorage so it survives refresh.
+   ⚠️  Ship with DEV_MODE_DEFAULT = false — users start on free tier.
+   ============================================================ */
+const DEV_MODE_DEFAULT = true; // fallback if localStorage is empty
+let DEV_MODE = localStorage.getItem('cogitrain_devmode') !== null
+  ? localStorage.getItem('cogitrain_devmode') === 'true'
+  : DEV_MODE_DEFAULT;
+let isPro = DEV_MODE;
+
+function toggleDevMode() {
+  DEV_MODE = !DEV_MODE;
+  isPro = DEV_MODE;
+  localStorage.setItem('cogitrain_devmode', DEV_MODE);
+  renderStats();
+  applyPaywallState();
+  showFeedbackToast(DEV_MODE ? '🟠 Dev Mode ON — full Pro access' : '⚫ Dev Mode OFF — free tier active');
+}
+
+// Secret unlock: tap version text 7 times
+let _devTapCount = 0;
+let _devTapTimer = null;
+function devTap() {
+  _devTapCount++;
+  clearTimeout(_devTapTimer);
+  if (_devTapCount >= 7) {
+    _devTapCount = 0;
+    const panel = document.getElementById('dev-toggle-panel');
+    if (panel) {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      if (panel.style.display === 'block') showFeedbackToast('🛠️ Developer panel unlocked');
+    }
+  } else {
+    _devTapTimer = setTimeout(() => { _devTapCount = 0; }, 1500);
+  }
+}
+
+/* ============================================================
+   PAYWALL HELPERS
+   ============================================================ */
+
+/* Reusable upgrade card HTML */
+function proLockCardHTML(featureName) {
+  return `<div class="pro-lock-overlay">
+    <div class="pro-lock-card">
+      <div class="pro-lock-icon">🔒</div>
+      <div class="pro-lock-title">Unlock ${featureName}<br>with CogiTrain Pro</div>
+      <div class="pro-lock-perks">
+        <div class="pro-lock-perk">Full session history</div>
+        <div class="pro-lock-perk">Calendar heatmap</div>
+        <div class="pro-lock-perk">Deep per-mode analytics</div>
+        <div class="pro-lock-perk">Performance Benchmarks</div>
+        <div class="pro-lock-perk">Cognitive Age Estimate</div>
+        <div class="pro-lock-perk">Personal Records</div>
+      </div>
+      <button class="pro-upgrade-btn" onclick="showUpgradeFlow()">Upgrade to Pro →</button>
+      <div class="pro-price-tag">$14.99 / month · Cancel anytime</div>
+    </div>
+  </div>`;
+}
+
+/* Placeholder upgrade flow — replace with RevenueCat purchase call in step 5 */
+function showUpgradeFlow() {
+  showFeedbackToast('💳 Payment coming soon — RevenueCat integration in Step 5');
+}
+
+/* Apply paywall state to all locked elements */
+function applyPaywallState() {
+  // DEV badge visibility
+  const devBadge = document.getElementById('dev-badge-nav');
+  if (devBadge) devBadge.style.display = DEV_MODE ? 'inline' : 'none';
+
+  // Settings about box dev status
+  const devStatus = document.getElementById('settings-dev-status');
+  if (devStatus) {
+    devStatus.textContent = DEV_MODE
+      ? '🟠 DEV MODE — paywall bypassed · tap version 7× to toggle'
+      : isPro ? '✅ Pro account active' : '🔒 Free tier · tap version 7× to toggle';
+    devStatus.style.color = DEV_MODE ? '#f97316' : isPro ? 'var(--green)' : 'var(--text-dim)';
+  }
+
+  // Sync dev toggle button text
+  const btn = document.getElementById('dev-toggle-btn');
+  if (btn) {
+    btn.textContent = DEV_MODE ? '🟠 DEV MODE: ON (Pro unlocked)' : '⚫ DEV MODE: OFF (Free tier active)';
+    btn.style.borderColor = DEV_MODE ? 'rgba(249,115,22,0.5)' : 'rgba(100,100,100,0.3)';
+    btn.style.color = DEV_MODE ? '#f97316' : 'var(--text-dim)';
+  }
+
+  // Tab lock icons — hide if Pro
+  ['calendar','modes','records'].forEach(tab => {
+    const lock = document.getElementById('lock-' + tab);
+    if (lock) lock.style.display = isPro ? 'none' : 'inline';
+  });
+
+  // Calendar, By Mode, Records overlays
+  ['calendar-lock-wrap','modes-lock-wrap','records-lock-wrap'].forEach((wrapId, i) => {
+    const wrap = document.getElementById(wrapId);
+    if (!wrap) return;
+    const existing = wrap.querySelector('.pro-lock-overlay');
+    if (existing) existing.remove();
+    if (!isPro) {
+      const names = ['Calendar Heatmap', 'Deep Mode Analytics', 'Personal Records'];
+      wrap.insertAdjacentHTML('beforeend', proLockCardHTML(names[i]));
+    }
+  });
+}
+
 /* ============================================================
    DATA LAYER — localStorage persistence
    ============================================================ */
@@ -2396,7 +2736,7 @@ function showScreen(id) {
 }
 function showMenu() {
   // Stop any running games
-  nback.abort(true); gonogo.abort(true); choicert.abort(true); taskswitch.abort(true);
+  nback.abort(true); gonogo.abort(true); choicert.abort(true); taskswitch.abort(true); stroop.abort(true);
   renderDashboard();
   showScreen('menu');
 }
@@ -2404,15 +2744,17 @@ function startMode(mode) {
   // Map mode key to screen id
   const screenId = mode === 'nback' ? 'nback' :
                    mode === 'gonogo' ? 'gonogo' :
-                   mode === 'choicert' ? 'choicert' : 'taskswitch';
+                   mode === 'choicert' ? 'choicert' :
+                   mode === 'stroop' ? 'stroop' : 'taskswitch';
   showScreen(screenId);
 
-  // Reset intro/game div visibility so replays start clean
+  // Reset intro/game div visibility — user sees intro, hits "Start Session" themselves
   const introMap = {
-    nback:      { intro: 'nb-intro',  game: 'nb-game'  },
-    gonogo:     { intro: 'gng-intro', game: 'gng-game' },
-    choicert:   { intro: 'crt-intro', game: 'crt-game' },
-    taskswitch: { intro: 'ts-intro',  game: 'ts-game'  },
+    nback:      { intro: 'nb-intro',      game: 'nb-game'      },
+    gonogo:     { intro: 'gng-intro',     game: 'gng-game'     },
+    choicert:   { intro: 'crt-intro',     game: 'crt-game'     },
+    taskswitch: { intro: 'ts-intro',      game: 'ts-game'      },
+    stroop:     { intro: 'stroop-intro',  game: 'stroop-game'  },
   };
   const ids = introMap[mode];
   if (ids) {
@@ -2421,10 +2763,7 @@ function startMode(mode) {
     if (introEl) { introEl.classList.remove('hidden'); introEl.style.display = ''; }
     if (gameEl)  { gameEl.classList.add('hidden');    gameEl.style.display  = 'none'; }
   }
-
-  // Start the mode
-  const modeObj = { nback, gonogo, choicert, taskswitch }[mode];
-  if (modeObj) modeObj.start();
+  // Do NOT call mode.start() here — the "Start Session" button does that
 }
 
 /* ============================================================
@@ -2465,8 +2804,8 @@ function renderDashboard() {
     return;
   }
   const recent = [...sessions].reverse().slice(0, 8);
-  const modeColors = { nback:'#00d4ff', gonogo:'#10d97e', choicert:'#fbbf24', taskswitch:'#a78bfa' };
-  const modeLabels = { nback:'N-Back', gonogo:'Go/No-Go', choicert:'Choice RT', taskswitch:'Task Switch' };
+  const modeColors = { nback:'#00d4ff', gonogo:'#10d97e', choicert:'#fbbf24', taskswitch:'#a78bfa', stroop:'#f97316' };
+  const modeLabels = { nback:'N-Back', gonogo:'Go/No-Go', choicert:'Choice RT', taskswitch:'Task Switch', stroop:'Stroop' };
   list.innerHTML = recent.map(s => {
     const col = modeColors[s.mode] || '#9ca3af';
     const lbl = modeLabels[s.mode] || s.mode;
@@ -2484,17 +2823,24 @@ function renderDashboard() {
 function drawSparkline(values) {
   const svg = document.getElementById('sparkline-svg');
   if (values.length < 2) { svg.innerHTML = ''; return; }
-  const W = 400, H = 50, pad = 4;
+  const W = 400, H = 50, pad = 4, labelW = 32;
   const min = Math.max(0,  Math.min(...values) - 5);
   const max = Math.min(100, Math.max(...values) + 5);
-  const xStep = (W - pad*2) / (values.length - 1);
+  const chartLeft = labelW;
+  const chartW = W - chartLeft - pad;
+  const xStep = chartW / (values.length - 1);
   const yScale = v => H - pad - ((v - min) / (max - min || 1)) * (H - pad*2);
-  const pts = values.map((v, i) => `${pad + i * xStep},${yScale(v)}`).join(' ');
+  const pts = values.map((v, i) => `${chartLeft + i * xStep},${yScale(v)}`).join(' ');
+  const areaPath = `M ${chartLeft},${yScale(values[0])} L ${pts.split(' ').slice(1).join(' L ')} L ${chartLeft+(values.length-1)*xStep},${H} L ${chartLeft},${H} Z`;
+  const latest = values[values.length - 1];
+  const latestX = chartLeft + (values.length - 1) * xStep;
+  const latestY = yScale(latest);
 
-  // Area fill
-  const first = `${pad},${yScale(values[0])}`;
-  const last  = `${pad + (values.length-1)*xStep},${yScale(values[values.length-1])}`;
-  const areaPath = `M ${first} L ${pts.split(' ').slice(1).join(' L ')} L ${pad+(values.length-1)*xStep},${H} L ${pad},${H} Z`;
+  // Update the label row to show latest value — no SVG text overlap
+  const labelEl = document.querySelector('#sparkline-section .sp-label');
+  if (labelEl) {
+    labelEl.innerHTML = `Accuracy Trend (last 20 sessions) <span style="float:right;color:#00d4ff;font-weight:700;">Latest: ${Math.round(latest)}%</span>`;
+  }
 
   svg.innerHTML = `
     <defs>
@@ -2505,7 +2851,9 @@ function drawSparkline(values) {
     </defs>
     <path d="${areaPath}" fill="url(#sg)"/>
     <polyline points="${pts}" fill="none" stroke="#00d4ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    ${values.map((v,i)=>`<circle cx="${pad+i*xStep}" cy="${yScale(v)}" r="2.5" fill="#00d4ff"/>`).join('')}
+    <text x="0" y="${yScale(max)+4}" font-size="8" fill="#6b7280" font-family="monospace" dominant-baseline="middle">${Math.round(max)}%</text>
+    <text x="0" y="${yScale(min)-2}" font-size="8" fill="#6b7280" font-family="monospace" dominant-baseline="middle">${Math.round(min)}%</text>
+    <circle cx="${latestX}" cy="${latestY}" r="3.5" fill="#00d4ff"/>
   `;
 }
 
@@ -2534,6 +2882,7 @@ function showResults(modeKey, data) {
     { val: 'Lv ' + nextLevel, lbl: 'Next Level' },
   ];
   if (switchCost != null) stats[2] = { val: switchCost + 'ms', lbl: 'Switch Cost' };
+  if (data.congruencyEffect != null) stats[2] = { val: data.congruencyEffect + 'ms', lbl: 'Congruency Effect' };
 
   document.getElementById('res-stats').innerHTML = stats.map(s =>
     `<div class="res-stat"><div class="rv">${s.val}</div><div class="rl">${s.lbl}</div></div>`
@@ -2550,6 +2899,45 @@ function showResults(modeKey, data) {
 
   // Replay button
   document.getElementById('res-replay-btn').onclick = () => startMode(modeKey);
+
+  // Pro teaser — shown to free users after every session
+  const teaserEl = document.getElementById('res-pro-teaser');
+  if (teaserEl) {
+    if (!isPro) {
+      // Build mini sparkline from last 7 sessions of this mode
+      const db = loadDB();
+      const modeSessions = db.sessions.filter(s => s.mode === modeKey && s.acc != null).slice(-7);
+      const sparkPts = modeSessions.length >= 2
+        ? (() => {
+            const vals = modeSessions.map(s => s.acc);
+            const mn = Math.max(0, Math.min(...vals) - 5);
+            const mx = Math.min(100, Math.max(...vals) + 5);
+            const W = 200, H = 36, pad = 4;
+            const xStep = (W - pad*2) / (vals.length - 1);
+            const yScale = v => H - pad - ((v - mn) / (mx - mn || 1)) * (H - pad*2);
+            return vals.map((v, i) => `${pad + i * xStep},${yScale(v)}`).join(' ');
+          })()
+        : null;
+
+      teaserEl.innerHTML = `
+        <div style="background:var(--surface);border:1px solid rgba(249,115,22,0.3);border-radius:var(--radius);padding:14px 16px;position:relative;overflow:hidden;">
+          <div style="font-size:0.72rem;font-family:var(--font-mono);color:#f97316;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">📊 Your ${modeKey === 'nback' ? 'N-Back' : modeKey === 'gonogo' ? 'Go/No-Go' : modeKey === 'choicert' ? 'Choice RT' : modeKey === 'taskswitch' ? 'Task Switch' : 'Stroop'} Trend</div>
+          <div style="position:relative;filter:blur(3px);pointer-events:none;opacity:0.5;">
+            ${sparkPts
+              ? `<svg viewBox="0 0 200 36" style="width:100%;height:36px;" preserveAspectRatio="none">
+                  <polyline points="${sparkPts}" fill="none" stroke="#f97316" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+                </svg>`
+              : `<div style="height:36px;background:linear-gradient(90deg,rgba(249,115,22,0.1),rgba(249,115,22,0.3));border-radius:4px;"></div>`
+            }
+          </div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,12,16,0.6);">
+            <button onclick="showUpgradeFlow()" style="background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:0.82rem;font-weight:700;cursor:pointer;">🔒 Unlock Full Trends — Pro</button>
+          </div>
+        </div>`;
+    } else {
+      teaserEl.innerHTML = '';
+    }
+  }
 
   showScreen('results');
 }
@@ -3225,6 +3613,183 @@ const taskswitch = (() => {
 })();
 
 /* ============================================================
+   MODE 5: STROOP
+   Color word shown in mismatched ink. Tap the ink color.
+   Accent: #f97316 (orange). Free tier.
+   Staircase adaptive: incongruent % and window shrink with level.
+   Metrics: acc, meanRT, congruencyEffect (incongruent RT - congruent RT)
+   ============================================================ */
+const stroop = (() => {
+  const TOTAL_TRIALS = 20;
+  const COLORS = [
+    { name: 'RED',    hex: '#ff4566' },
+    { name: 'BLUE',   hex: '#00d4ff' },
+    { name: 'GREEN',  hex: '#10d97e' },
+    { name: 'YELLOW', hex: '#fbbf24' },
+  ];
+
+  let level, trialIdx, correct, total;
+  let congruentRTs, incongruentRTs, rtList;
+  let active, waitingResp, trialStart, timerObj, stimTimeout;
+  let currentInkColor;
+
+  function getParamsFromLevel(lv) {
+    return {
+      incongruentRatio: Math.min(0.85, 0.30 + (lv - 1) * 0.065), // 30%→85% incongruent
+      windowMs: Math.max(800, 3000 - (lv - 1) * 230),             // 3000ms→800ms
+    };
+  }
+
+  function start() {
+    const d = getDifficulty('stroop');
+    level = d.level;
+    trialIdx = 0; correct = 0; total = 0;
+    rtList = []; congruentRTs = []; incongruentRTs = [];
+    active = true; waitingResp = false;
+
+    document.getElementById('stroop-level-badge').textContent = `Level ${level}`;
+    document.getElementById('stroop-intro').classList.add('hidden');
+    const gameEl = document.getElementById('stroop-game');
+    gameEl.classList.remove('hidden');
+    gameEl.style.display = 'flex';
+
+    updateStroopUI();
+    setTimeout(nextTrial, 600);
+  }
+
+  function nextTrial() {
+    if (!active) return;
+    if (trialIdx >= TOTAL_TRIALS) { finish(); return; }
+
+    trialIdx++;
+    const p = getParamsFromLevel(level);
+    const isIncongruent = Math.random() < p.incongruentRatio;
+
+    // Pick ink color
+    const inkIdx = Math.floor(Math.random() * COLORS.length);
+    currentInkColor = COLORS[inkIdx].name;
+
+    // Pick word — congruent: same as ink; incongruent: different
+    let wordIdx;
+    if (isIncongruent) {
+      do { wordIdx = Math.floor(Math.random() * COLORS.length); }
+      while (wordIdx === inkIdx);
+    } else {
+      wordIdx = inkIdx;
+    }
+    const wordName = COLORS[wordIdx].name;
+
+    waitingResp = true;
+    trialStart = Date.now();
+
+    // Show stimulus
+    const stimEl = document.getElementById('stroop-stimulus');
+    stimEl.textContent = wordName;
+    stimEl.style.color = COLORS[inkIdx].hex;
+    stimEl.style.borderColor = COLORS[inkIdx].hex + '66';
+
+    // Congruency badge
+    const badge = document.getElementById('stroop-congruency-badge');
+    badge.textContent = isIncongruent ? '⚡ INCONGRUENT' : '✓ CONGRUENT';
+    badge.style.background = isIncongruent ? 'rgba(251,191,36,0.12)' : 'rgba(16,217,126,0.08)';
+    badge.style.borderColor = isIncongruent ? 'rgba(251,191,36,0.4)' : 'rgba(16,217,126,0.3)';
+    badge.style.color = isIncongruent ? 'var(--yellow)' : 'var(--green)';
+
+    // Build 4 color buttons, shuffled
+    const shuffled = [...COLORS].sort(() => Math.random() - 0.5);
+    document.getElementById('stroop-options').innerHTML = shuffled.map(c =>
+      `<button class="opt-btn" style="border-color:${c.hex}44;color:${c.hex};font-weight:700;"
+        onclick="stroop.respond('${c.name}', ${isIncongruent})">${c.name}</button>`
+    ).join('');
+
+    updateStroopUI();
+
+    // Timer
+    if (timerObj) timerObj.stop();
+    timerObj = new RingTimer('stroop-ring', 'stroop-timer-txt', p.windowMs, null, () => {
+      if (waitingResp) {
+        waitingResp = false;
+        total++;
+        updateDifficulty('stroop', false);
+        document.querySelectorAll('#stroop-options .opt-btn').forEach(b => {
+          b.disabled = true;
+          if (b.textContent.trim() === currentInkColor) b.classList.add('correct-ans');
+        });
+        flashFeedback('stroop-feedback', false, '✗ Too slow!');
+        updateStroopUI();
+        setTimeout(nextTrial, 700);
+      }
+    });
+    timerObj.start();
+  }
+
+  function respond(chosen, isIncongruent) {
+    if (!waitingResp || !active) return;
+    waitingResp = false;
+    if (timerObj) timerObj.stop();
+
+    const rt = Date.now() - trialStart;
+    rtList.push(rt);
+    total++;
+
+    const isCorrect = chosen === currentInkColor;
+
+    // Highlight buttons
+    document.querySelectorAll('#stroop-options .opt-btn').forEach(b => {
+      b.disabled = true;
+      if (b.textContent.trim() === currentInkColor) b.classList.add('correct-ans');
+      else if (b.textContent.trim() === chosen && !isCorrect) b.classList.add('wrong-ans');
+    });
+
+    if (isCorrect) {
+      correct++;
+      updateDifficulty('stroop', true);
+      flashFeedback('stroop-feedback', true, `✓ ${rt}ms`);
+      if (isIncongruent) incongruentRTs.push(rt); else congruentRTs.push(rt);
+    } else {
+      updateDifficulty('stroop', false);
+      flashFeedback('stroop-feedback', false, `✗ ${currentInkColor} was correct`);
+    }
+
+    updateStroopUI();
+    setTimeout(nextTrial, 600);
+  }
+
+  function updateStroopUI() {
+    const acc = total ? Math.round(correct / total * 100) : 0;
+    document.getElementById('stroop-trial-info').textContent = `Trial ${trialIdx} / ${TOTAL_TRIALS}`;
+    document.getElementById('stroop-acc-info').textContent = total ? `Acc: ${acc}%` : 'Acc: —';
+    document.getElementById('stroop-acc-bar').style.width = total ? acc + '%' : '0%';
+  }
+
+  function finish() {
+    active = false;
+    const acc = total ? Math.round(correct / total * 100) : 0;
+    const d = getDifficulty('stroop');
+    const s = stats(rtList);
+    const cS = stats(congruentRTs);
+    const iS = stats(incongruentRTs);
+    const congruencyEffect = (cS.mean && iS.mean) ? iS.mean - cS.mean : null;
+    saveSession('stroop', { acc, trials: total, correct, meanRT: s.mean || null, sdRT: s.sd || null, congruencyEffect, level });
+    showResults('stroop', { acc, trials: total, correct, meanRT: s.mean || null, sdRT: s.sd || null, congruencyEffect, level, nextLevel: d.level });
+  }
+
+  function abort(silent) {
+    active = false; waitingResp = false;
+    clearTimeout(stimTimeout);
+    if (timerObj) timerObj.stop();
+    if (!silent) {
+      document.getElementById('stroop-intro').classList.remove('hidden');
+      const gameEl = document.getElementById('stroop-game');
+      gameEl.classList.add('hidden');
+      gameEl.style.display = 'none';
+    }
+  }
+
+  return { start, respond, abort };
+})();
+
+/* ============================================================
    KEYBOARD SUPPORT
    ============================================================ */
 document.addEventListener('keydown', e => {
@@ -3254,6 +3819,7 @@ const MODE_META = {
   gonogo:     { label: 'Go/No-Go',    icon: '🛑', color: '#10d97e', accent2: 'rgba(16,217,126,0.12)' },
   choicert:   { label: 'Choice RT',   icon: '⚡', color: '#fbbf24', accent2: 'rgba(251,191,36,0.12)'  },
   taskswitch: { label: 'Task Switch', icon: '🔀', color: '#a78bfa', accent2: 'rgba(167,139,250,0.12)' },
+  stroop:     { label: 'Stroop',      icon: '🎨', color: '#f97316', accent2: 'rgba(249,115,22,0.12)'  },
 };
 
 let calViewYear  = new Date().getFullYear();
@@ -3262,6 +3828,7 @@ let historyFilter = 'all';
 
 function showStats() {
   renderStats();
+  applyPaywallState();
   showScreen('stats');
 }
 
@@ -3302,47 +3869,60 @@ function renderOverview() {
   });
   document.getElementById('so-streak').textContent = best;
 
-  // Accuracy sparkline
+  // Accuracy sparkline — always shown
   if (withAcc.length > 1) {
     drawSparklineInto('so-sparkline', withAcc.slice(-20).map(s=>s.acc), '#00d4ff', 0, 100);
   }
-  // RT sparkline (inverted — lower is better, shown as green)
-  if (withRT.length > 1) {
-    drawSparklineInto('so-rt-sparkline', withRT.slice(-20).map(s=>s.meanRT), '#10d97e', null, null, true);
+
+  // RT sparkline — Pro only
+  const rtWrap = document.getElementById('so-rt-sparkline')?.closest('.sparkline-wrap');
+  if (rtWrap) {
+    if (!isPro) {
+      rtWrap.style.display = 'none';
+    } else {
+      rtWrap.style.display = '';
+      if (withRT.length > 1) {
+        drawSparklineInto('so-rt-sparkline', withRT.slice(-20).map(s=>s.meanRT), '#10d97e', null, null, true);
+      }
+    }
   }
 
-  // Per-mode summary mini cards
+  // Per-mode summary — Pro only
   const summaryEl = document.getElementById('so-mode-summary');
-  const modeKeys = Object.keys(MODE_META);
-  summaryEl.innerHTML = modeKeys.map(mk => {
-    const ms = sessions.filter(s => s.mode === mk);
-    if (!ms.length) return '';
-    const m = MODE_META[mk];
-    const lastAcc = ms[ms.length-1].acc;
-    const maxLevel = Math.max(...ms.map(s=>s.level||1));
-    const avgAcc = Math.round(ms.filter(s=>s.acc!=null).reduce((a,s)=>a+s.acc,0) / ms.filter(s=>s.acc!=null).length);
-    return `<div class="mode-breakdown" style="margin-bottom:12px;">
-      <div class="mode-breakdown-header">
-        <div class="mode-breakdown-title">
-          ${m.icon} ${m.label}
-          <span class="mode-breakdown-badge" style="background:${m.accent2};color:${m.color};border:1px solid ${m.color}44">${ms.length} sessions</span>
+  if (!isPro) {
+    summaryEl.innerHTML = '';
+  } else {
+    const modeKeys = Object.keys(MODE_META);
+    summaryEl.innerHTML = modeKeys.map(mk => {
+      const ms = sessions.filter(s => s.mode === mk);
+      if (!ms.length) return '';
+      const m = MODE_META[mk];
+      const lastAcc = ms[ms.length-1].acc;
+      const maxLevel = Math.max(...ms.map(s=>s.level||1));
+      const avgAcc = Math.round(ms.filter(s=>s.acc!=null).reduce((a,s)=>a+s.acc,0) / ms.filter(s=>s.acc!=null).length);
+      return `<div class="mode-breakdown" style="margin-bottom:12px;">
+        <div class="mode-breakdown-header">
+          <div class="mode-breakdown-title">
+            ${m.icon} ${m.label}
+            <span class="mode-breakdown-badge" style="background:${m.accent2};color:${m.color};border:1px solid ${m.color}44">${ms.length} sessions</span>
+          </div>
+          <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-dim)">Lv ${maxLevel} peak</span>
         </div>
-        <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-dim)">Lv ${maxLevel} peak</span>
-      </div>
-      <div class="mode-stat-grid">
-        <div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${avgAcc}%</div><div class="msl">Avg Acc</div></div>
-        <div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${maxLevel}</div><div class="msl">Peak Level</div></div>
-        <div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${lastAcc != null ? lastAcc+'%' : '—'}</div><div class="msl">Last Session</div></div>
-      </div>
-    </div>`;
-  }).join('');
+        <div class="mode-stat-grid">
+          <div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${avgAcc}%</div><div class="msl">Avg Acc</div></div>
+          <div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${maxLevel}</div><div class="msl">Peak Level</div></div>
+          <div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${lastAcc != null ? lastAcc+'%' : '—'}</div><div class="msl">Last Session</div></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
 }
 
 /* ---- SPARKLINE utility (generalized) ---- */
 function drawSparklineInto(svgId, values, color, minVal, maxVal, invertColor) {
   const svg = document.getElementById(svgId);
   if (!svg || values.length < 2) { if(svg) svg.innerHTML=''; return; }
-  const W=400,H=50,pad=4,labelW=32; // labelW = space reserved for axis labels
+  const W=400,H=50,pad=4,labelW=32;
   const mn = minVal != null ? minVal : Math.max(0, Math.min(...values)-5);
   const mx = maxVal != null ? maxVal : Math.min(9999, Math.max(...values)+5);
   const chartLeft = labelW;
@@ -3353,11 +3933,24 @@ function drawSparklineInto(svgId, values, color, minVal, maxVal, invertColor) {
   const areaPath=`M ${chartLeft},${yScale(values[0])} L ${pts.split(' ').slice(1).join(' L ')} L ${chartLeft+(values.length-1)*xStep},${H} L ${chartLeft},${H} Z`;
   const gradId = svgId+'_grad';
 
-  // Format label: if value looks like ms (>20) show as-is, if ≤100 assume %
+  // Format label: % for accuracy, plain number for RT
   const fmtLabel = v => {
     if (maxVal === 100 || (mn >= 0 && mx <= 100)) return Math.round(v) + '%';
-    return Math.round(v) + '';
+    return Math.round(v) + 'ms';
   };
+
+  const latest = values[values.length - 1];
+  const latestX = chartLeft + (values.length - 1) * xStep;
+  const latestY = yScale(latest);
+
+  // Inject latest value into the label row above the SVG — no overlap possible
+  const svgEl = document.getElementById(svgId);
+  const labelEl = svgEl ? svgEl.previousElementSibling : null;
+  if (labelEl && labelEl.classList.contains('sp-label') || labelEl && labelEl.classList.contains('mode-spark-label')) {
+    const existing = labelEl.dataset.baseText || labelEl.textContent;
+    labelEl.dataset.baseText = existing;
+    labelEl.innerHTML = `${existing} <span style="float:right;color:${color};font-weight:700;font-family:monospace;">Latest: ${fmtLabel(latest)}</span>`;
+  }
 
   svg.innerHTML=`<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0%" stop-color="${color}" stop-opacity="0.25"/>
@@ -3365,7 +3958,7 @@ function drawSparklineInto(svgId, values, color, minVal, maxVal, invertColor) {
   </linearGradient></defs>
   <path d="${areaPath}" fill="url(#${gradId})"/>
   <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-  ${values.map((v,i)=>`<circle cx="${chartLeft+i*xStep}" cy="${yScale(v)}" r="2.5" fill="${color}"/>`).join('')}
+  <circle cx="${latestX}" cy="${latestY}" r="3.5" fill="${color}"/>
   <text x="0" y="${yScale(mx)+4}" font-size="8" fill="var(--text-dim)" font-family="monospace" dominant-baseline="middle">${fmtLabel(mx)}</text>
   <text x="0" y="${yScale(mn)-2}" font-size="8" fill="var(--text-dim)" font-family="monospace" dominant-baseline="middle">${fmtLabel(mn)}</text>`;
 }
@@ -3461,6 +4054,8 @@ function renderModes() {
     const maxLevel= Math.max(...ms.map(s=>s.level||1));
     const switchSessions = mk==='taskswitch' ? ms.filter(s=>s.switchCost!=null) : [];
     const avgSwitch = switchSessions.length ? Math.round(switchSessions.reduce((a,s)=>a+s.switchCost,0)/switchSessions.length) : null;
+    const ceSessions = mk==='stroop' ? ms.filter(s=>s.congruencyEffect!=null) : [];
+    const avgCE = ceSessions.length ? Math.round(ceSessions.reduce((a,s)=>a+s.congruencyEffect,0)/ceSessions.length) : null;
 
     const accSparkId  = `spark-acc-${mk}`;
     const rtSparkId   = `spark-rt-${mk}`;
@@ -3470,6 +4065,7 @@ function renderModes() {
       if (withRT.length>1)  drawSparklineInto(rtSparkId, withRT.slice(-15).map(s=>s.meanRT), m.color);
     }, 50);
 
+    const extraCols = (mk==='taskswitch' || mk==='stroop') ? 3 : 2;
     return `<div class="mode-breakdown" style="margin-bottom:12px;">
       <div class="mode-breakdown-header">
         <div class="mode-breakdown-title">
@@ -3478,12 +4074,13 @@ function renderModes() {
         </div>
         <span style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-dim)">Peak Lv ${maxLevel}</span>
       </div>
-      <div class="mode-stat-grid" style="grid-template-columns:repeat(${mk==='taskswitch'?3:2},1fr)">
+      <div class="mode-stat-grid" style="grid-template-columns:repeat(${extraCols},1fr)">
         ${avgAcc!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${avgAcc}%</div><div class="msl">Avg Acc</div></div>`:''}
         ${bestAcc!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${bestAcc}%</div><div class="msl">Best Acc</div></div>`:''}
         ${avgRT!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${avgRT}ms</div><div class="msl">Avg RT</div></div>`:''}
         ${bestRT!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${bestRT}ms</div><div class="msl">Best RT</div></div>`:''}
         ${avgSwitch!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${avgSwitch}ms</div><div class="msl">Avg Switch Cost</div></div>`:''}
+        ${avgCE!=null?`<div class="mode-stat-cell"><div class="msv" style="color:${m.color}">${avgCE}ms</div><div class="msl">Avg Congruency Effect</div></div>`:''}
       </div>
       ${withAcc.length>1?`<div class="mode-spark-wrap"><div class="mode-spark-label">Accuracy trend</div><svg id="${accSparkId}" viewBox="0 0 400 36" preserveAspectRatio="none"></svg></div>`:''}
       ${withRT.length>1?`<div class="mode-spark-wrap" style="margin-top:8px;"><div class="mode-spark-label">Reaction time trend</div><svg id="${rtSparkId}" viewBox="0 0 400 36" preserveAspectRatio="none"></svg></div>`:''}
@@ -3544,6 +4141,18 @@ function renderRecords() {
         date: new Date(scSess.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})
       });
     }
+
+    // Stroop: best (lowest) congruency effect
+    if (mk==='stroop') {
+      const ceSess = ms.filter(s=>s.congruencyEffect!=null).sort((a,b)=>a.congruencyEffect-b.congruencyEffect)[0];
+      if (ceSess) records.push({
+        icon:'🎨', color: m.color,
+        name:'Stroop — Lowest Congruency Effect',
+        sub: `Lower = stronger interference control`,
+        val: ceSess.congruencyEffect+'ms',
+        date: new Date(ceSess.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})
+      });
+    }
   });
 
   if (!records.length) {
@@ -3580,11 +4189,29 @@ function renderFullHistory() {
   let sessions = [...db.sessions].reverse();
   if (historyFilter !== 'all') sessions = sessions.filter(s=>s.mode===historyFilter);
   const list = document.getElementById('full-history-list');
+
   if (!sessions.length) {
     list.innerHTML = `<div class="empty-state"><span class="es-icon">📭</span><strong>No sessions yet.</strong><br>Play a mode to start building history.</div>`;
     return;
   }
-  list.innerHTML = sessions.map(s=>buildFhItem(s)).join('');
+
+  if (isPro) {
+    // Full history
+    list.innerHTML = sessions.map(s=>buildFhItem(s)).join('');
+  } else {
+    // Free tier: show last 5 only, then upgrade teaser
+    const visible = sessions.slice(0, 5);
+    const locked  = sessions.length - visible.length;
+    list.innerHTML = visible.map(s=>buildFhItem(s)).join('');
+    if (locked > 0) {
+      list.insertAdjacentHTML('beforeend', `
+        <div class="history-pro-teaser">
+          <p>🔒 <strong>${locked} more session${locked!==1?'s':''}</strong> in your history — unlock the full log with Pro.</p>
+          <button class="pro-upgrade-btn" style="max-width:240px;margin:0 auto;" onclick="showUpgradeFlow()">Upgrade to Pro →</button>
+          <div class="pro-price-tag" style="margin-top:8px;">$14.99 / month · Cancel anytime</div>
+        </div>`);
+    }
+  }
 }
 
 function buildFhItem(s) {
@@ -3595,6 +4222,7 @@ function buildFhItem(s) {
   const sub = [
     s.meanRT ? `RT ${s.meanRT}ms` : null,
     s.switchCost!=null ? `SC ${s.switchCost}ms` : null,
+    s.congruencyEffect!=null ? `CE ${s.congruencyEffect}ms` : null,
     s.commission!=null ? `CE ${s.commission}` : null,
   ].filter(Boolean).join(' · ');
   return `<div class="fh-item">
@@ -3668,6 +4296,20 @@ const MODE_INFO_DATA = {
     ],
     score: 'Switch cost under 100ms = good. Under 50ms = strong. Under 20ms = elite. Watch your switch-trial accuracy specifically — that&#39;s more diagnostic than overall accuracy.',
     tip: '4–5 min per session · Most demanding mode — save for when you&#39;re sharp · Your 6ms switch cost is elite-level',
+  },
+  stroop: {
+    icon: '🎨', title: 'Stroop', color: '#f97316',
+    tagline: 'Cognitive Control Training',
+    what: 'A color word (like <strong>RED</strong>) appears written in a different ink color (like green). Your job is to tap the <strong>ink color</strong> — not the word. Your brain wants to read the word. The training is overriding that automatic response.',
+    science: 'The Stroop effect is one of the most replicated findings in psychology — first demonstrated by J. Ridley Stroop in 1935. The <strong>congruency effect</strong> (your RT difference between easy matching trials and hard mismatched trials) is a direct measure of executive control and interference suppression.',
+    benefits: [
+      'Stronger ability to focus on what matters and filter out distractions',
+      'Faster resolution of conflicting information under pressure',
+      'Improved selective attention in noisy or complex environments',
+      'Greater resistance to cognitive interference during multitasking',
+    ],
+    score: 'Congruency effect under 100ms is good. Under 50ms is strong. Under 30ms is elite. Your accuracy on incongruent trials (mismatched word/ink) is the key metric — that&#39;s where the real training happens.',
+    tip: '3–4 min per session · Great daily warm-up · Free tier · Pairs well with Go/No-Go on the same day',
   },
 };
 
@@ -3768,7 +4410,7 @@ function loadSettingsUI() {
 }
 
 function resetModeDifficulty(mode) {
-  const modeNames = {nback:'N-Back',gonogo:'Go/No-Go',choicert:'Choice RT',taskswitch:'Task Switch'};
+  const modeNames = {nback:'N-Back',gonogo:'Go/No-Go',choicert:'Choice RT',taskswitch:'Task Switch',stroop:'Stroop'};
   if (!confirm(`Reset ${modeNames[mode]} difficulty to Level 1? Your session history is preserved.`)) return;
   const db = loadDB();
   if (db.difficulty) delete db.difficulty[mode];
@@ -3832,7 +4474,7 @@ function getTodaySessions() {
 
 function getTodayMinutesByMode() {
   const today = getTodaySessions();
-  const result = { nback:0, gonogo:0, choicert:0, taskswitch:0 };
+  const result = { nback:0, gonogo:0, choicert:0, taskswitch:0, stroop:0 };
   today.forEach(s => {
     if (result[s.mode] !== undefined && s.durationSec) {
       result[s.mode] += s.durationSec;
@@ -3846,9 +4488,7 @@ function renderTodayStrip() {
   const totalSec = Object.values(byMode).reduce((a,b)=>a+b, 0);
   const totalMin = Math.round(totalSec / 60);
   const pct = Math.min(100, Math.round((totalSec / DAILY_GOAL_SEC) * 100));
-  const goalMet = totalSec >= DAILY_GOAL_SEC;
-
-  // Total label
+  const goalMet = totalSec >= DAILY_GOAL_SEC;  // Total label
   const totalLabel = document.getElementById('today-total-label');
   if (totalLabel) {
     const remaining = Math.max(0, Math.ceil((DAILY_GOAL_SEC - totalSec) / 60));
@@ -3866,7 +4506,7 @@ function renderTodayStrip() {
   }
 
   // Per-mode cells
-  const modes = ['nback','gonogo','choicert','taskswitch'];
+  const modes = ['nback','gonogo','choicert','taskswitch','stroop'];
   modes.forEach(mk => {
     const el = document.getElementById('today-' + mk + '-time');
     if (!el) return;
@@ -3962,13 +4602,31 @@ const BENCHMARKS = {
       const avgAcc  = recent.reduce((a,b)=>a+b.acc,0)/recent.length;
       const scSess  = s.filter(x=>x.switchCost!=null);
       const avgSC   = scSess.length ? Math.round(scSess.slice(-5).reduce((a,b)=>a+b.switchCost,0)/Math.min(5,scSess.length)) : null;
-      // Lower switch cost = better
       const scScore = avgSC != null ? Math.max(0, 200 - avgSC) / 2 : 50;
       const score   = avgAcc * 0.5 + scScore;
       return { score, avgAcc: Math.round(avgAcc), avgSC,
                metrics: [
                  { label:'Avg Accuracy (last 5)', val: Math.round(avgAcc)+'%', norm:'Avg adult ~78%' },
                  { label:'Avg Switch Cost', val: avgSC!=null ? avgSC+'ms' : '—', norm:'Good <100ms · Elite <20ms' },
+               ]};
+    }
+  },
+  stroop: {
+    label: 'Stroop', icon: '🎨', color: '#f97316',
+    getRank(sessions) {
+      const s = sessions.filter(x=>x.mode==='stroop'&&x.acc!=null);
+      if (!s.length) return null;
+      const recent = s.slice(-5);
+      const avgAcc = recent.reduce((a,b)=>a+b.acc,0)/recent.length;
+      const ceSess = s.filter(x=>x.congruencyEffect!=null);
+      const avgCE  = ceSess.length ? Math.round(ceSess.slice(-5).reduce((a,b)=>a+b.congruencyEffect,0)/Math.min(5,ceSess.length)) : null;
+      // Lower congruency effect = better (less interference)
+      const ceScore = avgCE != null ? Math.max(0, 300 - avgCE) / 3 : 50;
+      const score   = avgAcc * 0.55 + ceScore;
+      return { score, avgAcc: Math.round(avgAcc), avgCE,
+               metrics: [
+                 { label:'Avg Accuracy (last 5)', val: Math.round(avgAcc)+'%', norm:'Avg adult ~80%' },
+                 { label:'Congruency Effect', val: avgCE!=null ? avgCE+'ms' : '—', norm:'Good <100ms · Elite <40ms' },
                ]};
     }
   }
@@ -3987,7 +4645,20 @@ function renderBenchmarks() {
   const el = document.getElementById('so-benchmarks');
   if (!el) return;
 
-  const modes = ['nback','gonogo','choicert','taskswitch'];
+  // Free tier: show compact locked banner
+  if (!isPro) {
+    el.innerHTML = `
+      <div style="margin-top:8px;background:var(--surface);border:1px solid rgba(249,115,22,0.3);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-size:0.8rem;font-weight:600;color:var(--text);margin-bottom:3px;">🏆 Performance Benchmarks</div>
+          <div style="font-size:0.72rem;color:var(--text-dim);">See how you rank vs population norms across all 5 modes.</div>
+        </div>
+        <button onclick="showUpgradeFlow()" style="flex-shrink:0;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">Unlock Pro</button>
+      </div>`;
+    return;
+  }
+
+  const modes = ['nback','gonogo','choicert','taskswitch','stroop'];
   let html = '<div class="section-label" style="margin-top:8px;padding-top:16px;">Performance Benchmarks</div>';
 
   let overallScores = [];
@@ -4107,6 +4778,19 @@ function renderCogAge() {
   const el = document.getElementById('so-cog-age');
   if (!el) return;
 
+  // Free tier: show compact locked banner
+  if (!isPro) {
+    el.innerHTML = `
+      <div style="margin-top:8px;background:var(--surface);border:1px solid rgba(249,115,22,0.3);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-size:0.8rem;font-weight:600;color:var(--text);margin-bottom:3px;">🧬 Cognitive Age Estimate</div>
+          <div style="font-size:0.72rem;color:var(--text-dim);">Discover how your brain&#39;s speed compares to your actual age.</div>
+        </div>
+        <button onclick="showUpgradeFlow()" style="flex-shrink:0;background:linear-gradient(135deg,#f97316,#ea580c);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">Unlock Pro</button>
+      </div>`;
+    return;
+  }
+
   const age = parseInt(getSetting('age', ''));
   const db  = loadDB();
 
@@ -4182,6 +4866,10 @@ function renderCogAge() {
   // taskswitch
   const _tsStart = taskswitch.start.bind(taskswitch);
   taskswitch.start = function() { markSessionStart(); _tsStart(); };
+
+  // stroop
+  const _stStart = stroop.start.bind(stroop);
+  stroop.start = function() { markSessionStart(); _stStart(); };
 })();
 
 // Patch saveSession to always inject durationSec from current session timer
@@ -4233,6 +4921,7 @@ document.querySelectorAll('.mode-card').forEach(card => {
    INIT
    ============================================================ */
 renderDashboard();
+applyPaywallState();
 </script>
 </body>
 </html>
