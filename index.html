@@ -4203,14 +4203,20 @@ function renderFullHistory() {
     // Full history
     list.innerHTML = sessions.map(s=>buildFhItem(s)).join('');
   } else {
-    // Free tier: show last 5 only, then upgrade teaser
-    const visible = sessions.slice(0, 5);
-    const locked  = sessions.length - visible.length;
+    // Free tier: cap at 5 visible sessions regardless of filter
+    const FREE_LIMIT = 5;
+    const allSessions = [...db.sessions].reverse();
+    const totalLocked = Math.max(0, allSessions.length - FREE_LIMIT);
+    const visible = sessions.slice(0, FREE_LIMIT);
+    const hiddenInView = sessions.length - visible.length;
     list.innerHTML = visible.map(s=>buildFhItem(s)).join('');
-    if (locked > 0) {
+    if (totalLocked > 0) {
+      const msg = hiddenInView > 0
+        ? `🔒 <strong>${totalLocked} more session${totalLocked!==1?'s':''}</strong> in your history — unlock the full log with Pro.`
+        : `🔒 <strong>${totalLocked} more session${totalLocked!==1?'s':''}</strong> in your full history — unlock with Pro.`;
       list.insertAdjacentHTML('beforeend', `
         <div class="history-pro-teaser">
-          <p>🔒 <strong>${locked} more session${locked!==1?'s':''}</strong> in your history — unlock the full log with Pro.</p>
+          <p>${msg}</p>
           <button class="pro-upgrade-btn" style="max-width:240px;margin:0 auto;" onclick="showUpgradeFlow()">Upgrade to Pro →</button>
           <div class="pro-price-tag" style="margin-top:8px;">$14.99 / month · Cancel anytime</div>
         </div>`);
