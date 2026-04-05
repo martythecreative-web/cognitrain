@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>CogiTrain — Cognitive Training</title>
 
+<!-- Firebase SDK (compat v9 — works as script tags, no bundler needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
 <!-- ============================================================
      COGITRAIN — Science-grounded cognitive training app
      Modes: N-Back (working memory), Go/No-Go (inhibitory control),
@@ -2531,6 +2536,17 @@ html, body {
       </div>
 
       <div class="settings-section">
+        <div class="settings-section-title">Subscription</div>
+        <button class="settings-danger-btn" onclick="restorePurchases()"
+          style="border-color:rgba(0,212,255,0.4);background:rgba(0,212,255,0.08);color:var(--accent);">
+          🔄 Restore Purchases
+        </button>
+        <div style="font-size:0.72rem;color:var(--text-dim);margin-top:6px;padding:0 2px;">
+          Already subscribed? Tap to restore your Pro access on this device.
+        </div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-section-title">About</div>
         <div class="settings-about-box">
           <div class="ab-title">COGITRAIN</div>
@@ -2567,23 +2583,89 @@ html, body {
 <script>
 /* ============================================================
    DEV MODE & PRO FLAG
-   DEV_MODE drives isPro. Toggle via the secret button in Settings.
-   Persisted to localStorage so it survives refresh.
+   DEV_MODE is a developer bypass only — set false before shipping.
+   isPro is the real entitlement state, driven by RevenueCat.
    ⚠️  Ship with DEV_MODE_DEFAULT = false — users start on free tier.
    ============================================================ */
-const DEV_MODE_DEFAULT = true; // fallback if localStorage is empty
+const DEV_MODE_DEFAULT = false; // ← flip to true only during local dev
 let DEV_MODE = localStorage.getItem('cogitrain_devmode') !== null
   ? localStorage.getItem('cogitrain_devmode') === 'true'
   : DEV_MODE_DEFAULT;
-let isPro = DEV_MODE;
+let isPro = DEV_MODE; // will be overwritten by checkRCEntitlement() at runtime
+
+let _rcEntitlement = false; // raw result from RevenueCat, independent of DEV_MODE
+
+/* Single setter — always use this, never set isPro directly */
+function setProStatus(value) {
+  _rcEntitlement = !!value;
+  isPro = DEV_MODE ? true : _rcEntitlement;
+  renderStats();
+  applyPaywallState();
+}
 
 function toggleDevMode() {
   DEV_MODE = !DEV_MODE;
-  isPro = DEV_MODE;
   localStorage.setItem('cogitrain_devmode', DEV_MODE);
+  isPro = DEV_MODE ? true : _rcEntitlement;
   renderStats();
   applyPaywallState();
   showFeedbackToast(DEV_MODE ? '🟠 Dev Mode ON — full Pro access' : '⚫ Dev Mode OFF — free tier active');
+}
+
+/* ============================================================
+   REVENUECAT INTEGRATION
+   Plugin: @revenuecat/purchases-capacitor (v12.3.1)
+   Entitlement ID: 'pro'
+   API key: test key — replace with live key before production
+   ============================================================ */
+const RC_API_KEY = 'test_IGekmidBKSyjSIzaNQvOnozYkwK';
+const RC_ENTITLEMENT = 'pro';
+let _rcReady = false;
+
+async function initRevenueCat() {
+  try {
+    const { Purchases } = window;
+    if (!Purchases) {
+      // Running in browser/dev — RC plugin not available, DEV_MODE handles access
+      console.log('RC plugin not available (browser mode) — using DEV_MODE flag');
+      return;
+    }
+    await Purchases.configure({ apiKey: RC_API_KEY });
+    _rcReady = true;
+    await checkRCEntitlement();
+  } catch(e) {
+    console.warn('RevenueCat init failed:', e);
+  }
+}
+
+async function checkRCEntitlement() {
+  if (!_rcReady) return;
+  try {
+    const { Purchases } = window;
+    const { customerInfo } = await Purchases.getCustomerInfo();
+    const hasPro = customerInfo.entitlements.active[RC_ENTITLEMENT] !== undefined;
+    setProStatus(hasPro);
+  } catch(e) {
+    console.warn('RC entitlement check failed:', e);
+  }
+}
+
+async function restorePurchases() {
+  if (!_rcReady) {
+    showFeedbackToast('⚠️ Store not available in this environment');
+    return;
+  }
+  try {
+    showFeedbackToast('⏳ Restoring purchases…');
+    const { Purchases } = window;
+    const { customerInfo } = await Purchases.restorePurchases();
+    const hasPro = customerInfo.entitlements.active[RC_ENTITLEMENT] !== undefined;
+    setProStatus(hasPro);
+    showFeedbackToast(hasPro ? '✅ Pro access restored!' : '📭 No previous purchase found');
+  } catch(e) {
+    console.warn('RC restore failed:', e);
+    showFeedbackToast('❌ Restore failed — try again');
+  }
 }
 
 // Secret unlock: tap version text 7 times
@@ -2628,9 +2710,34 @@ function proLockCardHTML(featureName) {
   </div>`;
 }
 
-/* Placeholder upgrade flow — replace with RevenueCat purchase call in step 5 */
-function showUpgradeFlow() {
-  showFeedbackToast('💳 Payment coming soon — RevenueCat integration in Step 5');
+/* RevenueCat purchase flow — triggers Google Play billing sheet */
+async function showUpgradeFlow() {
+  if (!_rcReady) {
+    showFeedbackToast('&#9888;&#65039; Store not available in this environment');
+    return;
+  }
+  try {
+    const { Purchases } = window;
+    const { offerings } = await Purchases.getOfferings();
+    if (!offerings.current) {
+      showFeedbackToast('&#9888;&#65039; No offerings available — check RC dashboard');
+      return;
+    }
+    const pkg = offerings.current.monthly
+      || offerings.current.availablePackages[0];
+    if (!pkg) {
+      showFeedbackToast('&#9888;&#65039; No package found in offering');
+      return;
+    }
+    const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg });
+    const hasPro = customerInfo.entitlements.active[RC_ENTITLEMENT] !== undefined;
+    setProStatus(hasPro);
+    if (hasPro) showFeedbackToast('&#127881; Welcome to CogiTrain Pro!');
+  } catch(e) {
+    if (e.userCancelled) return;
+    console.warn('RC purchase failed:', e);
+    showFeedbackToast('&#10060; Purchase failed — try again');
+  }
 }
 
 /* Apply paywall state to all locked elements */
@@ -2681,8 +2788,55 @@ function applyPaywallState() {
 }
 
 /* ============================================================
-   DATA LAYER — localStorage persistence
+   DATA LAYER — localStorage (primary) + Firestore (background sync)
    ============================================================ */
+
+/* ── Firebase init ── */
+const firebaseConfig = {
+  apiKey:            "AIzaSyD8dxRzgKgDABeZ42enNeo5M83btoqdkEk",
+  authDomain:        "cogitrain-f2f11.firebaseapp.com",
+  projectId:         "cogitrain-f2f11",
+  storageBucket:     "cogitrain-f2f11.firebasestorage.app",
+  messagingSenderId: "656606270968",
+  appId:             "1:656606270968:web:06e02114c5bc33fb3ff20d"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+const fbDb   = firebase.firestore();
+
+/* Anonymous sign-in — silent, happens once on load */
+let fbUid = null;
+fbAuth.onAuthStateChanged(user => {
+  if (user) {
+    fbUid = user.uid;
+  } else {
+    fbAuth.signInAnonymously().catch(e => console.warn('Firebase auth failed:', e));
+  }
+});
+
+/* ── Sync helpers ── */
+// Background-sync a single session doc to Firestore. Never blocks the UI.
+async function syncSessionToCloud(sessionObj) {
+  if (!fbUid) return;
+  try {
+    await fbDb
+      .collection('users').doc(fbUid)
+      .collection('sessions').add(sessionObj);
+  } catch(e) { console.warn('Cloud sync failed (offline?):', e); }
+}
+
+// Background-sync difficulty map to Firestore.
+async function syncDifficultyToCloud(difficultyObj) {
+  if (!fbUid) return;
+  try {
+    await fbDb
+      .collection('users').doc(fbUid)
+      .collection('difficulty').doc('state')
+      .set(difficultyObj, { merge: true });
+  } catch(e) { console.warn('Difficulty sync failed:', e); }
+}
+
+/* ── localStorage layer (unchanged API) ── */
 const DB_KEY = 'cogitrain_v2';
 
 function loadDB() {
@@ -2695,20 +2849,29 @@ function saveDB(db) {
 function clearHistory() {
   if (!confirm('Clear all session history and reset difficulty? This cannot be undone.')) return;
   localStorage.removeItem(DB_KEY);
+  // Also clear cloud data for this user
+  if (fbUid) {
+    fbDb.collection('users').doc(fbUid).collection('sessions').get().then(snap => {
+      snap.forEach(doc => doc.ref.delete());
+    }).catch(e => console.warn('Cloud clear failed:', e));
+  }
   renderDashboard();
 }
 
-/* Save one session result */
+/* Save one session result — writes local immediately, syncs cloud in background */
 function saveSession(modeKey, payload) {
   const db = loadDB();
-  db.sessions.push({
+  const sessionObj = {
     mode: modeKey,
     ts: Date.now(),
     ...payload
-  });
-  // Keep at most 200 sessions
+  };
+  db.sessions.push(sessionObj);
+  // Keep at most 200 sessions locally
   if (db.sessions.length > 200) db.sessions.splice(0, db.sessions.length - 200);
   saveDB(db);
+  // Fire-and-forget cloud sync
+  syncSessionToCloud(sessionObj);
 }
 
 /* Staircase difficulty per mode.
@@ -2729,6 +2892,8 @@ function updateDifficulty(mode, correct) {
   }
   db.difficulty[mode] = d;
   saveDB(db);
+  // Fire-and-forget cloud sync
+  syncDifficultyToCloud(db.difficulty);
 }
 
 /* ============================================================
@@ -4932,6 +5097,8 @@ document.querySelectorAll('.mode-card').forEach(card => {
    ============================================================ */
 renderDashboard();
 applyPaywallState();
+// Init RevenueCat after DOM is ready — fire-and-forget, never blocks UI
+initRevenueCat();
 </script>
 </body>
 </html>
