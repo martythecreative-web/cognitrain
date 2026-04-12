@@ -1756,7 +1756,7 @@ html, body {
           <!-- Visual diagram -->
           <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
             <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-              <div style="width:44px;height:44px;border-radius:8px;background:rgba(124,58,237,0.15);border:2px dashed var(--accent2);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:1.1rem;color:var(--accent2);">B</div>
+              <div style="width:44px;height:44px;border-radius:8px;background:rgba(124,58,237,0.15);border:2px dashed var(--accent2);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:1.1rem;color:var(--accent2);">·</div>
               <div style="font-size:0.6rem;color:var(--accent2);font-family:var(--font-ui);font-weight:600;">N-BACK</div>
             </div>
             <div style="color:var(--text-dim);font-size:0.75rem;">···</div>
@@ -1774,9 +1774,9 @@ html, body {
             </div>
             <div style="margin-bottom:6px;">
               <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(124,58,237,0.15);border:1.5px dashed var(--accent2);vertical-align:middle;margin-right:6px;"></span>
-              <strong style="color:var(--text);">Purple tile</strong> = the letter N steps back (your target)
+              <strong style="color:var(--text);">Purple tile</strong> = marks the N-back position — letter is <em>hidden</em>, recall it from memory
             </div>
-            <div>Tiles are <strong style="color:var(--text);">visual only</strong> — respond with <strong style="color:var(--green);">Match</strong> or <strong style="color:var(--red);">No Match</strong> buttons only.</div>
+            <div>No hints — pure memory recall. Respond with <strong style="color:var(--green);">Match</strong> or <strong style="color:var(--red);">No Match</strong> only.</div>
           </div>
         </div>
         <div class="action-row" style="margin-top:16px;">
@@ -3238,8 +3238,8 @@ const nback = (() => {
     let responded = false;
     let trialStart = Date.now();
 
-    // Update tiles
-    renderTiles();
+    // Update tiles — N-back position outlined but letter hidden until after response
+    renderTiles(false);
 
     // Show stimulus
     const stimEl = document.getElementById('nb-stimulus');
@@ -3263,6 +3263,7 @@ const nback = (() => {
         } else {
           flashFeedback('nb-feedback', false, '✗ Missed match');
         }
+        renderTiles(true); // reveal N-back letter as feedback
         total++;
         updateNbackUI();
         setTimeout(nextTrial, 500);
@@ -3295,18 +3296,21 @@ const nback = (() => {
       updateDifficulty('nback', false);
       flashFeedback('nb-feedback', false, userSaysMatch ? '✗ False alarm' : '✗ Missed match');
     }
+    renderTiles(true); // reveal N-back letter as feedback
     updateNbackUI();
     setTimeout(nextTrial, 500);
   }
 
-  function renderTiles() {
+  function renderTiles(revealNBack) {
     const wrap = document.getElementById('nb-seq-tiles');
     const show = sequence.slice(-8); // last 8
     wrap.innerHTML = show.map((s, i) => {
       const isCurrent = i === show.length - 1;
       const isNBack = show.length > N && i === show.length - 1 - N;
+      // N-back tile letter hidden during trial — revealed only after response as feedback
+      const displayChar = isCurrent ? s : (isNBack ? (revealNBack ? s : '·') : '·');
       return `<div class="nback-tile ${isCurrent ? 'active' : ''}" title="${isNBack ? 'N-back position' : ''}"
-        style="${isNBack ? 'outline:2px dashed var(--accent2); outline-offset:2px;' : ''}">${isCurrent ? s : isNBack ? s : '·'}</div>`;
+        style="${isNBack ? 'outline:2px dashed var(--accent2); outline-offset:2px;' : ''}">${displayChar}</div>`;
     }).join('');
   }
 
@@ -3548,7 +3552,7 @@ const choicert = (() => {
       waitingResp = true;
 
       const flash = document.getElementById('crt-flash');
-      flash.textContent = currentSide === 'left' ? '◀  LEFT' : 'RIGHT  ▶';
+      flash.textContent = currentSide === 'left' ? '◀' : '▶';
       flash.className = 'crt-flash ' + (currentSide === 'left' ? 'active-left' : 'active-right');
       document.getElementById('crt-left-btn').disabled  = false;
       document.getElementById('crt-right-btn').disabled = false;
@@ -4759,7 +4763,7 @@ const BENCHMARKS = {
       return { score, avgAcc: Math.round(avgAcc), avgComm: Math.round(avgComm*10)/10,
                metrics: [
                  { label:'Avg Accuracy (last 5)', val: Math.round(avgAcc)+'%', norm:'Healthy adults avg ~85%' },
-                 { label:'Avg Commission Errors', val: Math.round(avgComm*10)/10, norm:'Elite: <1 per session' },
+                 { label:'Avg Commission Errors', val: Math.round(avgComm*10)/10, norm:'Elite: <1 (lab conditions)' },
                ]};
     }
   },
@@ -5021,7 +5025,7 @@ function renderCogAge() {
     <div style="text-align:center;font-size:0.82rem;font-weight:600;color:${diffColor};">
       Your brain is performing ${diffLabel}
     </div>
-    <div class="cog-age-note">Based on reaction time norms (Whelan 2008) and accuracy benchmarks across ${db.sessions.length} recorded sessions. Continue training to improve your estimate.</div>
+    <div class="cog-age-note">Based on reaction time norms (Whelan 2008) and accuracy benchmarks across ${db.sessions.length} recorded sessions. Continue training to improve your estimate. <em>This is an app-specific estimate, not a clinical neuropsychological assessment.</em></div>
   </div>`;
 }
 
