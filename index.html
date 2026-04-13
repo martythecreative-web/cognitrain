@@ -2761,8 +2761,8 @@ function applyPaywallState() {
   const devStatus = document.getElementById('settings-dev-status');
   if (devStatus) {
     devStatus.textContent = DEV_MODE
-      ? '🟠 DEV MODE — paywall bypassed · tap version 7× to toggle'
-      : isPro ? '✅ Pro account active' : '🔒 Free tier · tap version 7× to toggle';
+      ? '🟠 DEV MODE — paywall bypassed'
+      : isPro ? '✅ Pro account active' : '';
     devStatus.style.color = DEV_MODE ? '#f97316' : isPro ? 'var(--green)' : 'var(--text-dim)';
   }
 
